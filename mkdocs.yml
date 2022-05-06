@@ -53,3 +53,8 @@ markdown_extensions:
 plugins:
   - search
   - roamlinks 
+
+extra:
+    generator: false
+
+copyright: Copyright &copy; 2022 Jared Andrews
