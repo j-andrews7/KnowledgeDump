@@ -21,6 +21,8 @@ theme:
       toggle:
         icon: material/toggle-switch
         name: Switch to light mode
+    features:
+      - toc.integrate
 
 extra_css:
   - stylesheets/extra.css
@@ -32,18 +34,21 @@ markdown_extensions:
   - pymdownx.inlinehilite
   - pymdownx.snippets
   - pymdownx.superfences
+  - toc:
+      permalink: true
+  - pymdownx.caret
+  - pymdownx.mark
+  - pymdownx.tilde
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
   # - attr_list
   # - pymdownx.arithmatex
-  # - pymdownx.superfences
-  # - pymdownx.details
   # - pymdownx.magiclink
   # - pymdownx.tasklist:
   #     custom_checkbox: true
-#  - pymdownx.emoji:
-#      emoji_generator: !!python/name:pymdownx.emoji.to_svg
-  # - admonition
-  - toc:
-      permalink: true
+  # - pymdownx.emoji:
+  #     emoji_generator: !!python/name:pymdownx.emoji.to_svg
 
 plugins:
   - search
