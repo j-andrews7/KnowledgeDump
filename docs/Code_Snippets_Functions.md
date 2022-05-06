@@ -1,3 +1,7 @@
+---
+aliases: [code snippets and functions]
+---
+
 # Useful Code Snippets and Functions
 This serves as a collection of code snippets and functions for common data science, bioinformatics, data cleaning/munging, and data visualization tasks. I got sick of hunting through old notebooks and scripts to find that one thing I wrote a year ago.
 
