@@ -2,8 +2,6 @@ site_name: Famous Bioinformatics Blog
 
 theme:
     name: 'material'
-    features:
-      - toc.integrate
     palette:
 
     # Light mode
