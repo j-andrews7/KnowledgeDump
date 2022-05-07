@@ -10,6 +10,8 @@ This serves as a collection of code snippets and functions for common data scien
 ### Gene/Peak Annotations & Conversions
 
 #### Convert Ensembl Gene IDs to Symbols (or vice versa)
+There's like 45 ways to do this, but this is a pretty easy one that has a pretty good recovery rate.
+
 ```r
 # Mouse
 library(ensembldb)
@@ -24,6 +26,7 @@ symbs
 ### Viz
 
 #### 3D tSNE/UMAP/PCA
+Occasionally, 3D dimensionality reduction plots can be kind of useful for exploratory purposes.
 
 ```r
 library(plotly)
@@ -34,7 +37,8 @@ library(dittoSeq)
 #' @param dimred Character scalar indicating the name of the dimensionality reduction to plot.
 #' @param color.by Character scalar indicating colData column to color points by.
 #' @param shape.by Character scalar indicating colData column to shape points by.
-#' @param hover.info Character scalar or vector indicating colData column(s) to display when points are hovered.
+#' @param hover.info Character scalar or vector indicating colData column(s) 
+#'   to display when points are hovered.
 #' @param pt.size Numeric scalar indicating point size.
 plot3Ddim <- function(sce, dimred, color.by = NULL, shape.by = NULL, 
 					  hover.info = NULL, pt.size = 3) {
@@ -69,7 +73,8 @@ plot3Ddim <- function(sce, dimred, color.by = NULL, shape.by = NULL,
   if (!is.null(hover.info)) {
     hov <- list()
     for (i in seq_along(hover.info)) {
-      hov[[i]] <- paste0("</br><b>",hover.info[i], ":</b> ", colData(sce)[[hover.info[i]]])
+      hov[[i]] <- paste0("</br><b>",hover.info[i], ":</b> ", 
+                         colData(sce)[[hover.info[i]]])
     }
   
     hov.text <- do.call(paste0, hov)
@@ -113,6 +118,7 @@ To get lots of dimensionality reductions with differing parameters.
 ```r
 library(SingleCellExperiment)
 library(scater)
+library(BiocParallel)
 
 umap_sweep <- function(sce, dim_reduc, 
 					   min_dist = c(0.01, 0.02, 0.05, 0.1, 0.2, 0.3), 
@@ -120,7 +126,8 @@ umap_sweep <- function(sce, dim_reduc,
 					   
   for (d in min_dist) {
     for (n in n_neighbors) {
-      sce <- runUMAP(sce, n_neighbors = n, min_dist = d, name = paste0("UMAP_m.dist", d, "_n.neigh", n), 
+      sce <- runUMAP(sce, n_neighbors = n, min_dist = d, 
+                     name = paste0("UMAP_m.dist", d, "_n.neigh", n), 
 	                 dimred = dim_reduc, ncomponents = 2, BPPARAM = SnowParam(6))
     }
   }
@@ -188,7 +195,6 @@ colData(sce) <- cbind(celldata, out$clusters)
 Stuff to cram into your `.bashrc` to make your life generally easier.
 
 #### Extract Any Type of Compressed File
-I just add this to my `.bashrc` file.
 
 ```bash
 function extract {
