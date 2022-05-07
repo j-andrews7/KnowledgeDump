@@ -36,7 +36,9 @@ library(dittoSeq)
 #' @param shape.by Character scalar indicating colData column to shape points by.
 #' @param hover.info Character scalar or vector indicating colData column(s) to display when points are hovered.
 #' @param pt.size Numeric scalar indicating point size.
-plot3Ddim <- function(sce, dimred, color.by = NULL, shape.by = NULL, hover.info = NULL, pt.size = 3) {
+plot3Ddim <- function(sce, dimred, color.by = NULL, shape.by = NULL, 
+					  hover.info = NULL, pt.size = 3) {
+					  
   dimmy <- as.data.frame(reducedDim(sce, dimred))
   names(dimmy) <- paste0(dimred, "_", 1:3)
   
@@ -97,7 +99,8 @@ plot3Ddim <- function(sce, dimred, color.by = NULL, shape.by = NULL, hover.info 
   return(fig)
 }
 
-fig <- plot3Ddim(new.sce, "UMAP_m.dist0.3_n.neigh10", color.by = "Group", hover.info = c("CellType", "Group"))
+fig <- plot3Ddim(new.sce, "UMAP_m.dist0.3_n.neigh10", 
+				 color.by = "Group", hover.info = c("CellType", "Group"))
 
 # Self as self-contained html if wanted.
 saveWidget(jqui_resizable(fig), "./QC/UMAP.3D.m.dist0.3_n.neigh10.Group.html")
@@ -111,10 +114,14 @@ To get lots of dimensionality reductions with differing parameters.
 library(SingleCellExperiment)
 library(scater)
 
-umap_sweep <- function(sce, dim_reduc, min_dist = c(0.01, 0.02, 0.05, 0.1, 0.2, 0.3), n_neighbors = c(10, 15, 20, 30, 40, 50)) {
+umap_sweep <- function(sce, dim_reduc, 
+					   min_dist = c(0.01, 0.02, 0.05, 0.1, 0.2, 0.3), 
+					   n_neighbors = c(10, 15, 20, 30, 40, 50)) {
+					   
   for (d in min_dist) {
     for (n in n_neighbors) {
-      sce <- runUMAP(sce, n_neighbors = n, min_dist = d, name = paste0("UMAP_m.dist", d, "_n.neigh", n), dimred = dim_reduc, ncomponents = 2, BPPARAM = SnowParam(6))
+      sce <- runUMAP(sce, n_neighbors = n, min_dist = d, name = paste0("UMAP_m.dist", d, "_n.neigh", n), 
+	                 dimred = dim_reduc, ncomponents = 2, BPPARAM = SnowParam(6))
     }
   }
   
@@ -174,7 +181,7 @@ colData(sce) <- cbind(celldata, out$clusters)
 ```
 
 # Python
-
+:snake:
 
 # Bash
 
