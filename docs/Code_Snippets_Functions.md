@@ -5,11 +5,11 @@ aliases: [code snippets and functions]
 # Useful Code Snippets and Functions
 This serves as a collection of code snippets and functions for common data science, bioinformatics, data cleaning/munging, and data visualization tasks. I got sick of hunting through old notebooks and scripts to find that one thing I wrote a year ago.
 
-# R
+## R
 
-## Gene/Peak Annotations & Conversions
+### Gene/Peak Annotations & Conversions
 
-### Convert Ensembl Gene IDs to Symbols (or vice versa)
+#### Convert Ensembl Gene IDs to Symbols (or vice versa)
 ```r
 # Mouse
 library(ensembldb)
@@ -21,9 +21,9 @@ symbs <- mapIds(EnsDb.Mmusculus.v79, keys = ens.ids, keytype = "GENEID", column 
 symbs
 ```
 
-## Viz
+### Viz
 
-### 3D tSNE/UMAP/PCA
+#### 3D tSNE/UMAP/PCA
 
 ```r
 library(plotly)
@@ -106,8 +106,8 @@ fig <- plot3Ddim(new.sce, "UMAP_m.dist0.3_n.neigh10",
 saveWidget(jqui_resizable(fig), "./QC/UMAP.3D.m.dist0.3_n.neigh10.Group.html")
 ```
 
-## Single Cell RNA-seq
-### dimReduc Sweep
+### Single Cell RNA-seq
+#### dimReduc Sweep
 To get lots of dimensionality reductions with differing parameters.
 
 ```r
@@ -131,7 +131,7 @@ umap_sweep <- function(sce, dim_reduc,
 sce <- umap_sweep(sce, dim_reduc = "corrected")
 ```
 
-### cluster Sweep
+#### cluster Sweep
 To get lots of different clustering sets with different methods/parameters.
 
 ```r
@@ -180,12 +180,14 @@ celldata <- colData(sce)
 colData(sce) <- cbind(celldata, out$clusters)
 ```
 
-# Python
+## Python
 :snake: This is content.
 
-# Bash
+## Bash/Unix Tools
+### Useful `.bashrc` Functions, Aliases, etc.
+Stuff to cram into your `.bashrc` to make your life generally easier.
 
-### Extract Any Type of Compressed File
+#### Extract Any Type of Compressed File
 I just add this to my `.bashrc` file.
 
 ```bash
