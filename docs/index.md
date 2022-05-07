@@ -3,4 +3,4 @@ Sometimes all at once. This site is automatically rendered from markdown documen
 
 Like any bioinformaticist worth their weight, I only want three things - power :muscle:, fame :star:, and well-designed datasets with proper controls and consistent quality :bar_chart:. Not particularly in that order.
 
-This site is not going to help with any of that, but hey, it might be fun. **Fun**^they tell me!^ :tada: 
+This site is not going to help with any of that, but hey, it might be fun. _**Fun**, they tell me!_ :tada: 
