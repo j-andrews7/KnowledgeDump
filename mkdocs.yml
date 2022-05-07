@@ -1,7 +1,9 @@
-site_name: Knowledge & Code Dump
+site_name: Famous Bioinformatics Blog
 
 theme:
     name: 'material'
+    features:
+      - toc.integrate
     palette:
 
     # Light mode
@@ -21,8 +23,6 @@ theme:
       toggle:
         icon: material/toggle-switch
         name: Switch to light mode
-    features:
-      - toc.integrate
 
 extra_css:
   - stylesheets/extra.css
