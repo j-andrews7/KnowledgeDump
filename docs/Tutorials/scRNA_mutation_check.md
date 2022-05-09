@@ -16,9 +16,14 @@ In this case, I only care about one mutation, so I handmade my VCF for the H3.3K
 chr1	180811844	.	T	A	.	PASS	.
 ```
 
-Ultimately, you just need a VCF of mutations derived from the same reference as your single cell data. If you have matched bulk WGS or WES data, variants calls from that can be used. You *can* call variants from the scRNA-seq data itself, but it isn't recommended and won't be covered here. Use the [GATK RNA-seq variant discovery best practices](https://gatk.broadinstitute.org/hc/en-us/articles/360035531192-RNAseq-short-variant-discovery-SNPs-Indels-) for that.
+Ultimately, you just need a VCF of mutations derived from the same reference as your single cell data. If you have matched bulk WGS or WES data, variants called from that can be used. You *can* call variants from the scRNA-seq data itself, but it isn't recommended and won't be covered here. Use the [GATK RNA-seq variant discovery best practices](https://gatk.broadinstitute.org/hc/en-us/articles/360035531192-RNAseq-short-variant-discovery-SNPs-Indels-) for that.
 
 This file needs to be bgzipped and indexed via `tabix` as well.
+
+```bash
+bgzip k27m.vcf
+tabix k27m.vcf.gz
+```
 
 ## The Single Cell Dataset
 For your scRNA-seq dataset, you need aligned reads in BAM format, position sorted. Acquire these however you want, STARsolo, CellRanger, whatever. CellRanger BAMs will work by default.
@@ -130,6 +135,7 @@ dittoDimPlot(sce, "H3K27M_gt", reduction.use = paste0("UMAP_m.dist0.2_n.neigh10"
              order = "decreasing", size = 0.5) + theme(aspect.ratio = 1)
 ```
 
-![results](assets/images/scRNA_genotype_UMAP.PNG)
+
+![[Pasted image 20220509130339.png]]
 
 Looks pretty decent. See a few pops that didn't get much induction, and some that did, which was to be expected.
