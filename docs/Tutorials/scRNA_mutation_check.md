@@ -55,7 +55,7 @@ for f in ./cellranger_v6/*; do
 	bsub -P dnb -J vartrix_$samp -q standard -n 4 -R "rusage[mem=4000] span[hosts=1]" vartrix \
 	                 -v k27m.vcf.gz \
 	                 -b "$f"/outs/possorted_genome_bam.bam \
-	                 -f "$BAKER_REF"/genomes/mm10/indices/cellranger/refdata-gex-mm10-2020-A/fasta/genome.fa \
+	                 -f ./refdata-gex-mm10-2020-A/fasta/genome.fa \
 	                 -c "$f"/outs/raw_feature_bc_matrix/barcodes.tsv.gz \
 	                 -o ./vartrix/"$samp".K27M_vartrix.mtx
 
