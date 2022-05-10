@@ -10,17 +10,49 @@ This serves as a collection of code snippets and functions for common data scien
 ### Gene/Peak Annotations & Conversions
 
 #### Convert Ensembl Gene IDs to Symbols (or vice versa)
-There's like 45 ways to do this, but this is a pretty easy one that has a pretty good recovery rate.
+There's like 45 ways to do this, but these are pretty easy with a decent recovery rate.
+
+=== "Using mygene"
+
+    ```r
+    library(mygene)
+	
+    # Multiple genes. Returns a dataframe. Set `fields = "all"` to get all the info available.
+    df <- getGenes(c(1017, 1018, "ENSG00000148795", "LAIR1"), 
+               fields = c("symbol", "name", "taxid", "entrezgene", "ensembl.gene", "summary"))
+    df$entrezgene
+	
+	# Species can be set with `query` and `queryMany`. Symbol to ensembl.
+	df <- queryMany(c("Cdk2", "Cdk3"), scopes = "symbol", fields = "ensembl.gene", species = "mouse")
+    df$entrezgene
+    ```
+
+=== "Using ensembldb"
+	```r
+	library(ensembldb)
+	library(EnsDb.Mmusculus.v79)
+	
+	ens.ids <- c("ENSMUSG00000025907")
+	
+	symbs <- mapIds(EnsDb.Mmusculus.v79, keys = ens.ids, keytype = "GENEID", column = "SYMBOL")
+	symbs
+	```
+
+### Gene Summaries
+Refseq description summaries. Can use pretty much any type of gene ID for this, symbol, entrez, Ensembl, whatever. 
 
 ```r
-# Mouse
-library(ensembldb)
-library(EnsDb.Mmusculus.v79)
+library(mygene)
 
-ens.ids <- c("ENSMUSG00000025907")
+# One gene.
+gene <- getGene("1017", fields = "all")
+gene[[1]]$summary
 
-symbs <- mapIds(EnsDb.Mmusculus.v79, keys = ens.ids, keytype = "GENEID", column = "SYMBOL")
-symbs
+
+# Multiple genes. Returns a dataframe. Set `fields = "all"` to get all the info available.
+df <- getGenes(c(1017, 1018, "ENSG00000148795", "LAIR1"), 
+               fields = c("symbol", "name", "taxid", "entrezgene", "summary"))
+df$summary
 ```
 
 ### Viz

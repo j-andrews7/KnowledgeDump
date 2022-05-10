@@ -41,6 +41,8 @@ markdown_extensions:
   - pymdownx.details
   - attr_list
   - md_in_html
+  - pymdownx.tabbed:
+      alternate_style: true
   # - pymdownx.arithmatex
   # - pymdownx.magiclink
   # - pymdownx.tasklist:
