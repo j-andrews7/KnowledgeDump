@@ -120,6 +120,10 @@ library(SingleCellExperiment)
 library(scater)
 library(BiocParallel)
 
+#' @param sce SingleCellExperiment object.
+#' @param dimred Character scalar indicating the name of the dimensionality reduction use as input.
+#' @param min_dist Numeric vector indicating parameters to sweep for min_dist UMAP parameter.
+#' @param n_neighbors Numeric vector indicating parameters to sweep for n_neighbors UMAP parameter.
 umap_sweep <- function(sce, dim_reduc, 
 					   min_dist = c(0.01, 0.02, 0.05, 0.1, 0.2, 0.3), 
 					   n_neighbors = c(10, 15, 20, 30, 40, 50)) {
@@ -135,7 +139,7 @@ umap_sweep <- function(sce, dim_reduc,
   return(sce)
 }
 
-sce <- umap_sweep(sce, dim_reduc = "corrected")
+sce <- umap_sweep(sce, dim_reduc = "PCA")
 ```
 
 #### cluster Sweep
@@ -147,7 +151,7 @@ library(scater)
 library(bluster)
 library(dittoSeq)
 
-out <- clusterSweep(reducedDim(sce, "corrected"), 
+out <- clusterSweep(reducedDim(sce, "PCA"), 
     NNGraphParam(), 
     k=as.integer(c(10, 15, 20, 25, 30, 35, 40)),
     cluster.fun=c("louvain", "walktrap"))
