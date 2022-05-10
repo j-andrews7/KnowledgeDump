@@ -39,7 +39,7 @@ There's like 45 ways to do this, but these are pretty easy with a decent recover
 	```
 
 ### Gene Summaries
-Refseq description summaries. Can use pretty much any type of gene ID for this, symbol, entrez, Ensembl, whatever. 
+Refseq description summaries. Can use pretty much any type of gene ID for this, symbol, entrez, Ensembl, whatever, it's pretty good at figuring it out. 
 
 ```r
 library(mygene)
