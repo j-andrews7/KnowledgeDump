@@ -1,3 +1,4 @@
-# Publish your Obsidian Notes
+# Obscure Bioinformatics Knowledge Dump
+I dump notes, tutorials, and useful code snippets and functions here. Mostly bioinformatics. R and bash likely dominate, sprinkled with a touch 'o python on occasion.
 
-Repo for content hosted [here](https://j-andrews7.github.io/KnowledgeDump).
+Content nicely rendered [here](https://j-andrews7.github.io/KnowledgeDump).
