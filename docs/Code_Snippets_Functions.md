@@ -17,14 +17,10 @@ There's like 45 ways to do this, but these are pretty easy with a decent recover
     ```r
     library(mygene)
 	
-    # Multiple genes. Returns a dataframe. Set `fields = "all"` to get all the info available.
-    df <- getGenes(c(1017, 1018, "ENSG00000148795", "LAIR1"), 
-               fields = c("symbol", "name", "taxid", "entrezgene", "ensembl.gene", "summary"))
-    df$entrezgene
-	
 	# Species can be set with `query` and `queryMany`. Symbol to ensembl.
-	df <- queryMany(c("Cdk2", "Cdk3"), scopes = "symbol", fields = "ensembl.gene", species = "mouse")
-    df$entrezgene
+	# Set `fields = "all"` to get all the info available.
+	df <- queryMany(c("Cdk2", "Cdk3"), fields = c("ensembl.gene", "entrezgene"), species = "mouse", size = 1)
+    df$ensembl.gene
     ```
 
 === "Using ensembldb"
@@ -39,19 +35,19 @@ There's like 45 ways to do this, but these are pretty easy with a decent recover
 	```
 
 ### Gene Summaries
-Refseq description summaries. Can use pretty much any type of gene ID for this, symbol, entrez, Ensembl, whatever, it's pretty good at figuring it out. 
+Refseq description summaries. Can use almost any ID for these, does a decent job figuring it out.
 
 ```r
 library(mygene)
 
 # One gene.
-gene <- getGene("1017", fields = "all")
-gene[[1]]$summary
+gene <- query("CDK2", fields = "all", size = 1)
+gene$hits$summary
 
 
 # Multiple genes. Returns a dataframe. Set `fields = "all"` to get all the info available.
-df <- getGenes(c(1017, 1018, "ENSG00000148795", "LAIR1"), 
-               fields = c("symbol", "name", "taxid", "entrezgene", "summary"))
+df <- queryMany(c(1017, 1018, "ENSG00000148795", "LAIR1"), 
+               fields = c("symbol", "name", "taxid", "entrezgene", "summary"), size = 1)
 df$summary
 ```
 
