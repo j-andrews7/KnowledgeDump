@@ -219,6 +219,243 @@ celldata <- colData(sce)
 colData(sce) <- cbind(celldata, out$clusters)
 ```
 
+
+### GSEA
+#### High-throughput Functions with Plotting
+This will run through a bunch of named lists containing genesets and run GSEA on them, yielding both text output for each geneset collection and plots. Two variants, one specific for `msigdbr` genesets (`runGSEA`), one for custom genesets (`runCustomGSEA`).
+
+I'll write a tutorial for doing this end-to-end eventually.
+
+```{r}
+library("fgsea")
+library("msigdbr")
+library("dplyr")
+library("gridExtra")
+library("BiocParallel")
+
+#' Run GSEA via fgsea.
+#'
+#' @param msigs A set of gene sets as returned by \code{msigdbr}.
+#' @param ranked.genes A vector of gene identifiers ranked by a test statistic, effect size, etc.
+#' @param outdir Character scalar indicating the output directory.
+#' @param outprefix Character scalar indicating the output prefix for files.
+#' @param xlsx A named list containing results from previous runs. Allows for
+#'   more brainless looping.
+#' @param cats A character scalar or vector containing MSigDB categories
+#'   to use from full set of gene sets.
+#' @param subcats A character scalar or vector for subcategories within each category to limit to.
+#'   If provided, should be the same length as \code{cats}.
+#' @param ... Additional arguments passed to \code{fgsea}.
+#' @return xlsx, a named list of GSEA results for each (sub)category.
+#'
+runGSEA <- function(msigs, ranked.genes, outdir, outprefix, 
+                    xlsx = NULL, cats = "H", subcats = NULL, ...) {
+  if (length(cats) != length(subcats)) {
+    stop("cats and subcats must be of equal length")
+  }
+  
+  collapsedPathways <- NULL
+  
+  for (i in seq_along(cats)) {
+    # Parse out the category and subcategory, set output prefixes.
+    subcat <- NULL
+    categ <- cats[i]
+    if (!is.null(subcats) & subcats[i] != "") {
+      subcat <- subcats[i]
+      sigs <- msigs %>% dplyr::filter(gs_cat == categ & gs_subcat == subcat)
+      outpre <- paste0(outdir, "/", outprefix, ".", categ, ".", subcat)
+      outpre <- gsub(":", ".", outpre)
+      xlname <- paste0(outprefix, ".", categ, ".", subcat)
+      xlname <- gsub(":", ".", xlname)
+    } else {
+      sigs <- msigs %>% dplyr::filter(gs_cat == categ)
+      outpre <- paste0(outdir, "/", outprefix, ".", categ)
+      xlname <- paste0(outprefix, ".", categ)
+    }
+    
+    # Convert the msigdbr dataframe to named lists containing the gene sets in the set category.
+    sigs <- sigs %>% split(x = .$gene_symbol, f = .$gs_name)
+    fgseaRes <- fgsea(pathways = sigs, 
+                  stats    = ranked.genes,
+                  eps      = 1e-100,
+                  minSize  = 15,
+                  maxSize  = 1000,
+                  ...)
+    fgseaRes <- fgseaRes[order(padj),]
+    
+    # Save full results.
+    fwrite(fgseaRes, file=paste0(outpre, ".fgseaRes.txt"), sep="\t", sep2=c("", " ", ""))
+      
+    # Figures
+    fsig <- fgseaRes$pathway[fgseaRes$padj < 0.05]
+    plots <- list()
+    for (f in seq_along(fsig)) {
+      pathw <- fsig[f]
+      if (!is.na(pathw)) {
+        # Adjust corner that stats will be plotted in based on swoop shape.
+        if (!is.na(fgseaRes$NES[f]) & fgseaRes$NES[f] < 0) {
+          xinf <- -Inf
+          yinf <- -Inf
+        } else {
+          xinf <- Inf
+          yinf <- Inf
+        }
+        
+        # For those really long titles.
+        tt <- pathw
+        if (nchar(tt) > 40) {
+          stri_sub(tt, 48, 47) <- "\n"
+        } 
+        
+        p <- plotEnrichment(sigs[[pathw]],
+                ranked.genes) + labs(title = tt) + 
+        theme(plot.title = element_text(size=6))
+
+        # Add stats to plot.
+        p <- p + annotate("text", xinf, yinf,
+                          label = paste0("p.val = ",
+                                         formatC(fgseaRes$pval[fgseaRes$pathway == pathw],
+                                                 format = "e", digits = 2),
+                                         "\np.adj = ",
+                                         formatC(fgseaRes$padj[fgseaRes$pathway == pathw],
+                                               format = "e", digits = 2),
+                                         "\nNES = ",
+                                         round(fgseaRes$NES[fgseaRes$pathway == pathw], digits = 2)),
+                        vjust = "inward", hjust = "inward", size = 3)
+        plots[[f]] <- p
+      }
+    }
+    
+    if (length(plots) > 0) {
+      pdf(paste0(outpre, ".Pathways.padj0.05.Swoops.pdf"), height = 10, width = 20)
+      # Calculate how many pages to print assuming max 24 plots per page.
+      pages <- ceiling(length(plots)/24)
+      # Print each page.
+      for (i in 1:pages) {
+        end <- i * 24
+        start <- end - 23
+        if (end > length(plots)) {
+          end <- length(plots)
+        }
+        grid.arrange(grobs = plots[start:end], nrow = 4, ncol = 6)
+      }
+      dev.off()
+    }
+    
+    # Plot top 10 pos/neg enriched pathways in table-ish format plot.
+    if (length(fsig) > 0) {
+      pdf(paste0(outpre, ".Top10Pathways.padj0.05.pdf"), width = 12)
+      topPathwaysUp <- fgseaRes[ES > 0 & padj < 0.05][head(order(pval), n=10), pathway]
+      topPathwaysDown <- fgseaRes[ES < 0 & padj < 0.05][head(order(pval), n=10), pathway]
+      topPathways <- c(topPathwaysUp, rev(topPathwaysDown))
+      plotGseaTable(sigs[topPathways], ranked.genes, fgseaRes, 
+              gseaParam=0.5)
+      dev.off()
+    }
+    
+    # Add results to named list.
+    if (!is.null(xlsx)) {
+      xlsx[[xlname]] <- fgseaRes
+    }
+  }
+  if (!is.null(xlsx)) {
+      return(xlsx)
+  }
+}
+
+
+runCustomGSEA <- function(sigs, ranked.genes, outdir, 
+                          outprefix, xlsx = NULL, ...) {
+  # Basically the same function as above except 'sigs' is just
+  # a named list of gene sets.
+  
+  outpre <- paste0(outdir, "/", outprefix, ".c")
+  xlname <- paste0(outprefix, ".c")
+
+  fgseaRes <- fgsea(pathways = sigs, 
+                stats    = ranked.genes,
+                eps      = 1e-100,
+                minSize  = 15,
+                maxSize  = 3000,
+                ...)
+  fgseaRes <- fgseaRes[order(padj),]
+  
+  # Save full results.
+  fwrite(fgseaRes, file=paste0(outpre, ".fgseaRes.txt"), 
+         sep="\t", sep2=c("", " ", ""))
+    
+  # Figures
+  fsig <- fgseaRes$pathway
+  plots <- list()
+  for (f in seq_along(fsig)) {
+    pathw <- fsig[f]
+    if (!is.na(pathw)) {
+      
+      # reposition annotation depending on curve shape.
+      if (!is.na(fgseaRes$NES[f]) & fgseaRes$NES[f] < 0) {
+        xinf <- -Inf
+        yinf <- -Inf
+      } else {
+        xinf <- Inf
+        yinf <- Inf
+      }
+      
+      # For those really long titles.
+      tt <- pathw
+      if (nchar(tt) > 40) {
+        stri_sub(tt, 48, 47) <- "\n"
+      } 
+      
+      p <- plotEnrichment(sigs[[pathw]],
+              ranked.genes) + labs(title=tt) + 
+        theme(plot.title = element_text(size=7))
+      
+      # Add stats to plot.
+      p <- p + annotate("text", xinf, yinf, 
+                        label = paste0("p.val = ", 
+                                       formatC(fgseaRes$pval[f], format = "e", digits = 2), 
+                                       "\np.adj = ", 
+                                       formatC(fgseaRes$padj[f], format = "e", digits = 2), 
+                                       "\nNES = ",
+                                       round(fgseaRes$NES[f], digits = 2)),
+                        vjust = "inward", hjust = "inward", size = 3)
+      
+      plots[[f]] <- p
+    }
+  }
+  
+  pdf(paste0(outpre, ".Pathways.padj0.05.Swoops.pdf"), height = 10, width = 20)
+  # Calculate how many pages to print assuming max 24 plots per page.
+  pages <- ceiling(length(plots)/24)
+  # Print each page.
+  for (i in 1:pages) {
+    end <- i * 24
+    start <- end - 23
+    if (end > length(plots)) {
+      end <- length(plots)
+    }
+    grid.arrange(grobs = plots[start:end], nrow = 4, ncol = 6)
+  }
+  dev.off()
+  
+  pdf(paste0(outpre, ".Top10Pathways.padj0.05.pdf"), width = 12)
+  topPathwaysUp <- fgseaRes[ES > 0 & padj < 0.05][head(order(pval), n=10), pathway]
+  topPathwaysDown <- fgseaRes[ES < 0 & padj < 0.05][head(order(pval), n=10), pathway]
+  topPathways <- unique(c(topPathwaysUp, rev(topPathwaysDown)))
+  plotGseaTable(sigs[topPathways], ranked.genes, fgseaRes, 
+          gseaParam=0.5)
+  dev.off()
+  
+  if (!is.null(xlsx)) {
+    xlsx[[xlname]] <- fgseaRes
+  }
+  
+  if (!is.null(xlsx)) {
+    return(xlsx)
+  }
+}
+```
+
 ## Python
 :snake: This is content.
 
