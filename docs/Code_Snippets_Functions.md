@@ -226,7 +226,7 @@ This will run through a bunch of named lists containing genesets and run GSEA on
 
 I'll write a tutorial for doing this end-to-end eventually.
 
-```{r}
+```r
 library("fgsea")
 library("msigdbr")
 library("dplyr")
