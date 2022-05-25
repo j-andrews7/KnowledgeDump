@@ -456,6 +456,82 @@ runCustomGSEA <- function(sigs, ranked.genes, outdir,
 }
 ```
 
+### CNV Calling from Methylation Array
+```r
+library("minfi")
+library("conumee")
+
+#' @param meta Character scalar for theath to samplesheet with sample metadata, each row containing a sample.
+#' @param basedir Character scalar for the base directory containing IDATs.
+#' @param controls Character scalar or vector.
+#' @param outdir Character scalar or vector.
+#' @param exclude_regions GRanges object containing regions to exclude from the CN plots.
+#' @param detail_regions GRanges object containing regions to label.
+#' @param array_type Character scalar indicating more array type. Options are "450k", "EPIC", or "overlap" for
+#'   datasets with mixed arrays.
+#' @param idat_cols Character scalar or vector containing column names for sample identifier columns to paste together.
+#'   This should be the IDAT ID.
+#' @param name_col Character scalar for column containing sample names.
+run_conumee_CNV <- function(meta, basedir, controls, outdir, exclude_regions = NULL, detail_regions = NULL, 
+                            array_type = "450k", idat_cols = c("Sentrix_ID", "Sentrix_Position"),
+                            name_col = "Sample") {
+  ## Load data.
+  meta <- read.csv(meta)
+  meta$Basename <- file.path(basedir, apply(meta[,idat_cols, drop = FALSE], MARGIN = 1, FUN = paste0, collapse = ""))
+  samps <- read.metharray.exp(targets = meta, force = TRUE)
+  
+  samps <- preprocessNoob(samps)
+  
+  anno <- CNV.create_anno(array_type = array_type, exclude_regions = exclude_regions, detail_regions = detail_regions)
+  
+  # This is a bugfix for EPIC arrays and the probes in the annotations by default being screwed up. 
+  if (array_type %in% c("EPIC", "overlap")) {
+    anno@probes <- anno@probes[names(anno@probes) %in% names(minfi::getLocations(IlluminaHumanMethylationEPICanno.ilm10b4.hg19::IlluminaHumanMethylationEPICanno.ilm10b4.hg19))]
+  }
+  
+  ## CNV Calling
+  cn.data <- CNV.load(samps)
+
+  sammies <- unlist(pData(samps)[name_col])
+  sammies <- sammies[!sammies %in% controls]
+  
+  ## Plots & Tables
+  pdf(paste0(outdir, "/CNVplots.conumee.pdf"), height = 9, width = 18)
+  for (s in sammies) {
+    s.data <- rownames(pData(samps))[unlist(pData(samps)[name_col]) == s]
+    c.data <- rownames(pData(samps))[unlist(pData(samps)[name_col]) %in% controls]
+    x <- CNV.fit(cn.data[s.data], cn.data[c.data], anno)
+    
+    x <- CNV.bin(x)
+    x <- CNV.detail(x)
+    x <- CNV.segment(x)
+    
+    CNV.genomeplot(x, main = s)
+    
+    CNV.write(x, what = "segments", file = paste0(outdir, "/", s, ".CNVsegments.seg"))  
+    CNV.write(x, what = "bins", file = paste0(outdir, "/", s, ".CNVbins.igv"))
+    CNV.write(x, what = "detail", file = paste0(outdir, "/", s, ".CNVdetail.txt"))
+    CNV.write(x, what = "probes", file = paste0(outdir, "/", s, ".CNVprobes.igv"))
+  }
+  dev.off()
+
+}
+
+## Detail regions can be made from a BED file if wanted, see the example data for format.
+data(exclude_regions)
+data(detail_regions)
+
+run_conumee_CNV(meta = "SampleMap.csv", 
+                array_type = "EPIC",
+                basedir = "./", 
+                controls = c("Ctrl1", "Ctrl2", "Ctrl3"), 
+                outdir = "./cnv",
+                exclude_regions = exclude_regions,
+                detail_regions = detail_regions,
+                idat_cols = "IDAT",
+                name_col = "Sample")
+```
+
 ## Python
 :snake: This is content.
 
