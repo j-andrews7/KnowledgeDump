@@ -811,6 +811,8 @@ run_enrichPathway <- function(res.list, padj.th = 0.05, lfc.th = 0, outdir = "./
     }
   }
 }
+
+run_enrichPathway(res)
 ```
 
 ### CNV Calling from Methylation Array
