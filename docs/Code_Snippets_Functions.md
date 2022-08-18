@@ -726,7 +726,7 @@ run_enrichPathway <- function(res.list, padj.th = 0.05, lfc.th = 0, outdir = "./
     dir.create(paste0(out, "/Reactome_pathways"), showWarnings = FALSE, recursive = TRUE)
     
     # Strip gene version info if ensembl.
-    if (id_type == "ENSEMBL") {
+    if (id.type == "ENSEMBL") {
       xx <- strsplit(df[[id.col]], "\\.")
       df[[id.col]] <- unlist(lapply(xx, FUN = function(x) x[1]))
     }
@@ -813,6 +813,91 @@ run_enrichPathway <- function(res.list, padj.th = 0.05, lfc.th = 0, outdir = "./
 }
 
 run_enrichPathway(res)
+```
+
+#### GO Enrichment
+
+```r
+#' @param res.list Named list of DESeq2 results data.frames.
+#' @param padj.th Numeric scalar to use as significance threshold for DE genes.
+#' @param lfc.th Numeric scalar to use as log fold change threshold for DE genes.
+#' @param outdir Character scalar for output directory.
+#' @param OrgDb Character scalar for annotation database to use.
+#' @param id.col Character scalar indicating name of gene ID column for each data.frame in \code{res.list}
+#' @param id.type Character scalar indicating type of gene ID used. See \code{keytypes(org.Hs.eg.db)} for all options.
+#' @param ... Passed to \code{compareCluster}.
+run_enrichGO <- function(res.list, padj.th = 0.05, lfc.th = 0, outdir = "./enrichments",
+                         OrgDb = "org.Hs.eg.db", id.col = "ENSEMBL", id.type = "ENSEMBL", ...) {
+  # Do GO enrichment on up/downregulated genes.
+  for (r in names(res.list)) {
+    df <- res[[r]]
+    out <- file.path(outdir, r)
+    dir.create(paste0(out, "/GO_enrichments"), showWarnings = FALSE, recursive = TRUE)
+    
+    # Strip gene version info if ensembl.
+    if (id.type == "ENSEMBL") {
+      xx <- strsplit(df[[id.col]], "\\.")
+      df[[id.col]] <- unlist(lapply(xx, FUN = function(x) x[1]))
+    }
+    
+    # Get FC values for pathway plots.
+    df <- df[!is.na(df$padj),]
+    geneList <- bitr(df[[id.col]], fromType = id.type, toType = "ENTREZID", 
+                      OrgDb = OrgDb)
+    geneList$FC <- df$log2FoldChange[match(geneList$ENSEMBL, df$ENSEMBL)]
+    gl <- geneList$FC
+    names(gl) <- geneList$ENTREZID
+    gl <- sort(gl, decreasing = TRUE)
+    
+    genes <- list(upregulated = df[[id.col]][df$padj < padj.th & df$log2FoldChange > lfc.th],
+                  downregulated = df[[id.col]][df$padj < padj.th  & df$log2FoldChange < lfc.th],
+                  all_de = df[[id.col]][df$padj < padj.th])
+    
+    genes$upregulated <- bitr(genes$upregulated, fromType = id.type, toType = "ENTREZID", 
+                      OrgDb = OrgDb)$ENTREZID
+    
+    genes$downregulated <- bitr(genes$downregulated, fromType = id.type, toType = "ENTREZID", 
+                      OrgDb = OrgDb)$ENTREZID
+    
+    genes$all_de <- bitr(genes$all_de, fromType = id.type, toType = "ENTREZID", 
+                      OrgDb = OrgDb)$ENTREZID
+    
+    # Remove lowly expressed genes.
+    bg <- df[[id.col]][!is.na(df$padj)]
+    bg <- bitr(bg, fromType = id.type, toType = "ENTREZID", OrgDb = OrgDb)$ENTREZID
+    
+    ck <- compareCluster(geneCluster = genes, fun = enrichGO, universe = bg, 
+                         readable = TRUE, ont = "ALL", OrgDb = OrgDb, ...)
+    
+    if (!is.null(ck)) {
+      # Term similarities via Jaccard Similarity index.
+      ego <- pairwise_termsim(ck)
+      
+      # Adjust plot height based on number of terms.
+      height = 3 + (0.05 * length(ego@compareClusterResult$Cluster))
+      
+      pdf(paste0(out, "/GO_Enrichments.Top20_perGroup.pdf"), width = 6, height = height)
+      p <- dotplot(ego, showCategory = 20, font.size = 9)
+      print(p)
+      p <- dotplot(ego, size = "count", showCategory = 20, font.size = 9)
+      print(p)
+      dev.off()
+      
+      # pdf(paste0(out, "/GO_Enrichments.termsim.Top20_perGroup.pdf"), width = 9, height = 9)
+      # p <- emapplot(ego, pie="count", cex_category=0.9, cex_label_category = 0.9, 
+      #               layout="kk", repel = TRUE, showCategory = 20)
+      # print(p)
+      # dev.off()
+      
+      saveRDS(ego, file = paste0(out, "/enrichGO.RDS"))
+      ego <- as.data.frame(ego)
+      write.table(ego, file = paste0(out, "/enrichGO.results.txt"), 
+                  sep = "\t", row.names = FALSE, quote = FALSE)
+    }
+  }
+}
+
+run_enrichGO(res)
 ```
 
 ### CNV Calling from Methylation Array
