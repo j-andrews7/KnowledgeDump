@@ -257,6 +257,7 @@ runGSEA <- function(msigs, ranked.genes, outdir, outprefix,
   collapsedPathways <- NULL
   
   for (i in seq_along(cats)) {
+    
     # Parse out the category and subcategory, set output prefixes.
     subcat <- NULL
     categ <- cats[i]
@@ -456,10 +457,368 @@ runCustomGSEA <- function(sigs, ranked.genes, outdir,
 }
 ```
 
+#### Summarization 
+The above is nice for generate results for all the significant hits, but it's not a great summary of them. The below will take those results and plot the top X number of significant genesets, ranked by adjusted p-value, for each collection as a plot.
+
+```r
+summarize_GSEA <- function(gsea.list, outdir, padj.th = 0.05, top = 75) {
+  dir.create(outdir, showWarnings = FALSE, recursive = TRUE)
+  
+  for (i in seq_along(gsea.list)) {
+    ct <- names(gsea.list)[i]
+    df <- gsea.list[[i]]
+    
+    df.sub <- df[df$padj < padj.th,]
+    
+    if (nrow(df.sub) > top) {
+      df.sub <- df.sub %>% as_tibble() %>% arrange(padj)
+      df.sub <- df.sub[1:top, ]
+    }
+    
+    if (nrow(df.sub) > 0) {
+      df.sub <- df.sub %>%
+        as_tibble() %>%
+        arrange(desc(NES))
+      
+      p <- ggplot(df.sub, aes(reorder(pathway, -NES), NES)) +
+        geom_col(aes(fill=-log10(padj))) + coord_flip() +
+        labs(x=NULL, y="Normalized Enrichment Score", 
+             title=paste0(ct, " - Top ", top, "\np.adj < ", padj.th)) + 
+        theme_bw() + scale_fill_viridis() + ylim(-4,4) + 
+        theme(axis.text.y = element_text(size = 6), plot.title = element_text(size = 10)) +
+        scale_x_discrete(label = function(x) str_trunc(x, 55))
+      
+      h <- 2 + (0.07 * nrow(df.sub))
+      
+      pdf(paste0(outdir, "/", ct, ".padj.", padj.th, ".topbypadj", top, ".revrank.pdf"), width = 7, height = h)
+      print(p)
+      dev.off()
+    }
+  }
+}
+
+summarize_GSEA(xl.lists, outdir = "./GSEA/RA.v.vehicle")
+```
+
+#### Plot Leading Edge Genes
+GSEA returns the leading edge genes that are driving the score for a given signature. It can be useful to have a closer look at these genes in the form of boxplots and/or heatmaps.
+
+```r
+plot_le <- function(sce, gsea.lists, annot.by, group.by, outdir, use.assay, cells.use, sig.thresh = 0.05, 
+					group.by2 = NULL, split.by = NULL, swap.rownames = NULL) {
+  
+  for (i in seq_along(gsea.lists)) {
+    ct <- names(gsea.lists)[i]
+    df <- gsea.lists[[i]]
+    
+    sig.paths <- df$pathway[df$padj < sig.thresh]
+    
+    dir.create(outdir, showWarnings = FALSE, recursive = TRUE)
+    for (p in seq_along(sig.paths)) {
+      path.name <- sig.paths[p]
+      le <- unlist(df$leadingEdge[df$pathway == path.name])
+
+	  if (nchar(path.name) > 50) {
+        path.name <- substr(path.name, 1, 50)
+      }
+
+      if (length(le) > 1) {
+      
+        pdf(paste0(outdir, "/", ct, ".", path.name, ".boxplot.pdf"), width = 5, height = 4)
+        
+        for (i in use.assay) {
+          pl <- dittoPlotVarsAcrossGroups(sce[,cells.use], le, group.by = group.by, 
+                                          plots = c("vlnplot", "jitter", "boxplot"), assay = i, sub = i,
+                                          vlnplot.lineweight = 0.4, boxplot.lineweight = 0.5, swap.rownames = swap.rownames)
+          print(pl)
+          pl <- dittoPlotVarsAcrossGroups(sce[,cells.use], le, group.by = group.by, 
+                                          plots = c("vlnplot", "jitter", "boxplot"), 
+                                          adjustment = "relative.to.max", assay = i, sub = i,
+                                          vlnplot.lineweight = 0.4, boxplot.lineweight = 0.5, swap.rownames = swap.rownames)
+          print(pl)
+          pl <- dittoPlotVarsAcrossGroups(sce[,cells.use], le, group.by = group.by, 
+                                          plots = c("vlnplot", "jitter", "boxplot"), 
+                                          adjustment = "none", assay = i, sub = i,
+                                          vlnplot.lineweight = 0.4, boxplot.lineweight = 0.5, swap.rownames = swap.rownames)
+          print(pl)
+          
+          if (!is.null(group.by2) & !is.null(split.by)) {
+            pl <- dittoPlotVarsAcrossGroups(sce, le, group.by = group.by2, split.by = split.by,
+                                            plots = c("vlnplot", "jitter", "boxplot"), assay = i, sub = i,
+                                            vlnplot.lineweight = 0.4, boxplot.lineweight = 0.5, swap.rownames = swap.rownames)
+            print(pl)
+            pl <- dittoPlotVarsAcrossGroups(sce, le, group.by = group.by2, split.by = split.by,
+                                            plots = c("vlnplot", "jitter", "boxplot"), 
+                                            adjustment = "relative.to.max", assay = i, sub = i,
+                                            vlnplot.lineweight = 0.4, boxplot.lineweight = 0.5, swap.rownames = swap.rownames)
+            print(pl)
+            pl <- dittoPlotVarsAcrossGroups(sce, le, group.by = group.by2, split.by = split.by,
+                                            plots = c("vlnplot", "jitter", "boxplot"), 
+                                            adjustment = "none", assay = i, sub = i,
+                                            vlnplot.lineweight = 0.4, boxplot.lineweight = 0.5, swap.rownames = swap.rownames)
+            print(pl)
+          }
+        }
+        
+        dev.off()
+        
+        pdf(paste0(outdir, "/", ct, ".", path.name, ".heatmap.pdf"), width = 5, height = 7)
+        for (i in use.assay) {
+          pl <- dittoHeatmap(sce, le, annot.by = annot.by, cells.use = cells.use, show_colnames = FALSE,
+                             breaks = seq(-3, 3, length.out = 51), cluster_rows = FALSE,
+                             fontsize_row = 6, cluster_cols = FALSE, assay = i, sub = i, swap.rownames = swap.rownames)
+          grid.draw(pl)
+          
+          pl <- dittoHeatmap(sce, le, annot.by = annot.by, show_colnames = FALSE,
+                             breaks = seq(-3, 3, length.out = 51), cluster_rows = FALSE,
+                             fontsize_row = 6, cluster_cols = FALSE, assay = i, sub = i, swap.rownames = swap.rownames)
+          grid.draw(pl)
+        }
+        dev.off()
+      }
+    }
+  }
+}
+
+plot_le(bulk, xl.lists, annot.by = "Line_Treatment", group.by = "Line_Treatment", group.by2 = "Treatment", 
+		split.by = "Line", outdir = "./GSEA/LTC115.v.LTC97_DMSO/leading_edge", use.assay = c("lognorm", "vsd"), 
+		cells.use = bulk$Line_Treatment %in% c("LTC115_DMSO", "LTC97_DMSO", "LTC115_Primary", "LTC97_Primary"))
+```
+
+### Enrichment/Over-representation Analyses
+These are kind of a pain to run for multiple comparisons, etc, so these functions try to ease that pain. Like a glass of water and handful of advil after a rough night.
+
+#### KEGG Enrichment
+
+```r
+library("org.Hs.eg.db")
+library("clusterProfiler")
+library("enrichplot")
+library("pathview")
+library("ReactomePA")
+
+#' @param res.list Named list of DESeq2 results data.frames.
+#' @param padj.th Numeric scalar to use as significance threshold for DE genes.
+#' @param lfc.th Numeric scalar to use as log fold change threshold for DE genes.
+#' @param outdir Character scalar for output directory.
+#' @param OrgDb Character scalar for annotation database to use.
+#' @param id.col Character scalar indicating name of gene ID column for each data.frame in \code{res.list}
+#' @param id.type Character scalar indicating type of gene ID used. See \code{keytypes(org.Hs.eg.db)} for all options.
+#' @param ... Passed to \code{compareCluster}.
+run_enrichKEGG <- function(res.list, padj.th = 0.05, lfc.th = 0, outdir = "./enrichments",
+                         OrgDb = "org.Hs.eg.db", id.col = "ENSEMBL", id.type = "ENSEMBL", ...) {
+  # Do GO enrichment on up/downregulated genes.
+  for (r in names(res.list)) {
+    df <- res[[r]]
+    out <- file.path(outdir, r)
+    dir.create(paste0(out, "/KEGG_pathview"), showWarnings = FALSE, recursive = TRUE)
+    
+    # Strip gene version info if ensembl.
+    if (id.type == "ENSEMBL") {
+      xx <- strsplit(df[[id.col]], "\\.")
+      df[[id.col]] <- unlist(lapply(xx, FUN = function(x) x[1]))
+    }
+    
+    # Get FC values for pathway plots.
+    df <- df[!is.na(df$padj),]
+    geneList <- bitr(df[[id.col]], fromType = id.type, toType = "ENTREZID", 
+                      OrgDb = OrgDb)
+    geneList$FC <- df$log2FoldChange[match(geneList$ENSEMBL, df$ENSEMBL)]
+    gl <- geneList$FC
+    names(gl) <- geneList$ENTREZID
+    gl = sort(gl, decreasing = TRUE)
+    
+    # Get gene categories.
+    genes <- list(upregulated = df[[id.col]][df$padj < padj.th & df$log2FoldChange > lfc.th],
+                  downregulated = df[[id.col]][df$padj < padj.th & df$log2FoldChange < lfc.th],
+                  all_de = df[[id.col]][df$padj < padj.th])
+    
+    genes$upregulated <- bitr(genes$upregulated, fromType = id.type, toType = "ENTREZID", 
+                      OrgDb = OrgDb)$ENTREZID
+    
+    genes$downregulated <- bitr(genes$downregulated, fromType = id.type, toType = "ENTREZID", 
+                      OrgDb = OrgDb)$ENTREZID
+    
+    genes$all_de <- bitr(genes$all_de, fromType = id.type, toType = "ENTREZID", 
+                      OrgDb = OrgDb)$ENTREZID
+    
+    # Remove lowly expressed genes.
+    bg <- df[[id.col]][!is.na(df$padj)]
+    bg <- bitr(bg, fromType = id.type, toType = "ENTREZID", OrgDb = OrgDb)$ENTREZID
+    
+    ck <- compareCluster(geneCluster = genes, fun = enrichKEGG, keyType = "kegg", universe = bg, ...)
+    if (!is.null(ck)) {
+      ck <- setReadable(ck, OrgDb = OrgDb, keyType="ENTREZID")
+      
+      # Term similarities via Jaccard Similarity index.
+      ego <- pairwise_termsim(ck)
+      
+      height = 3 + (0.15 * length(ego@compareClusterResult$Cluster))
+      
+      pdf(paste0(out, "/KEGG_Enrichments.Top20_perGroup.pdf"), width = 6, height = height)
+      p <- dotplot(ego, showCategory = 20, font.size = 9)
+      print(p)
+      p <- dotplot(ego, size = "count", showCategory = 20, font.size = 9)
+      print(p)
+      dev.off()
+      
+      pdf(paste0(out, "/KEGG_Enrichments.termsim.Top20_perGroup.pdf"), width = 9, height = 9)
+      p <- emapplot(ego, pie="count", cex_category=0.9, cex_label_category = 0.9, 
+                    layout="kk", repel = TRUE, showCategory = 20)
+      print(p)
+      dev.off()
+      
+      for (x in ego@compareClusterResult$ID) {
+        pname <- ego@compareClusterResult$Description[ego@compareClusterResult$ID == x]
+        xx <- tryCatch(
+          pathview(gene.data  = gl,
+                   pathway.id = x,
+                   kegg.dir = paste0(out, "/KEGG_pathview/"),
+                   species    = "hsa",
+                   out.suffix = pname,
+                   limit      = list(gene=3, cpd=1),
+                   kegg.native = TRUE),
+          error = function(e) {"bah"}
+        )
+      }
+
+      # This idiotic workaround copies the PNGs to our wanted directory as pathview generates
+      # all output in the working directory with no way to alter output location. Pretty dumb.
+      old_dir <- "./"
+      new_dir <- paste0(out, "/KEGG_pathview/")
+      old_files <- list.files(path = old_dir, pattern = "png", full.names = T)
+      new_files <- sub(old_dir, new_dir, old_files)
+      file.rename(from = old_files, to = new_files)
+      
+      saveRDS(ego, file = paste0(out, "/enrichKEGG.results.RDS"))
+      ego <- as.data.frame(ego)
+      write.table(ego, file = paste0(out, "/enrichKEGG.results.txt"), sep = "\t", row.names = FALSE, quote = FALSE)
+    }
+  }
+}
+
+run_enrichKEGG(res)
+```
+
+#### Reactome
+
+```r
+library("org.Hs.eg.db")
+library("clusterProfiler")
+library("enrichplot")
+library("pathview")
+library("ReactomePA")
+
+#' @param res.list Named list of DESeq2 results data.frames.
+#' @param padj.th Numeric scalar to use as significance threshold for DE genes.
+#' @param lfc.th Numeric scalar to use as log fold change threshold for DE genes.
+#' @param outdir Character scalar for output directory.
+#' @param OrgDb Character scalar for annotation database to use.
+#' @param id.col Character scalar indicating name of gene ID column for each data.frame in \code{res.list}
+#' @param id.type Character scalar indicating type of gene ID used. See \code{keytypes(org.Hs.eg.db)} for all options.
+#' @param ... Passed to \code{compareCluster}.
+run_enrichPathway <- function(res.list, padj.th = 0.05, lfc.th = 0, outdir = "./enrichments",
+                         OrgDb = "org.Hs.eg.db", id.col = "ENSEMBL", id.type = "ENSEMBL", ...) {
+  # Do GO enrichment on up/downregulated genes.
+  for (r in names(res.list)) {
+    df <- res[[r]]
+    out <- file.path(outdir, r)
+    dir.create(paste0(out, "/Reactome_pathways"), showWarnings = FALSE, recursive = TRUE)
+    
+    # Strip gene version info if ensembl.
+    if (id_type == "ENSEMBL") {
+      xx <- strsplit(df[[id.col]], "\\.")
+      df[[id.col]] <- unlist(lapply(xx, FUN = function(x) x[1]))
+    }
+    
+    # Get FC values for pathway plots.
+    df <- df[!is.na(df$padj),]
+    geneList <- bitr(df[[id.col]], fromType = id.type, toType = "ENTREZID", 
+                      OrgDb = OrgDb)
+    geneList$FC <- df$log2FoldChange[match(geneList$ENSEMBL, df$ENSEMBL)]
+    gl <- geneList$FC
+    names(gl) <- geneList$ENTREZID
+    gl = sort(gl, decreasing = TRUE)
+    
+    genes <- list(upregulated = df[[id.col]][df$padj < padj.th & df$log2FoldChange > lfc.th],
+                  downregulated = df[[id.col]][df$padj < padj.th  & df$log2FoldChange < lfc.th],
+                  all_de = df[[id.col]][df$padj < padj.th])
+    
+    genes$upregulated <- bitr(genes$upregulated, fromType = id.type, toType = "ENTREZID", 
+                      OrgDb = OrgDb)$ENTREZID
+    
+    genes$downregulated <- bitr(genes$downregulated, fromType = id.type, toType = "ENTREZID", 
+                      OrgDb = OrgDb)$ENTREZID
+    
+    genes$all_de <- bitr(genes$all_de, fromType = id.type, toType = "ENTREZID", 
+                      OrgDb = OrgDb)$ENTREZID
+    
+    # Remove lowly expressed genes.
+    bg <- df[[id.col]][!is.na(df$padj)]
+    bg <- bitr(bg, fromType = id.type, toType = "ENTREZID", OrgDb = OrgDb)$ENTREZID
+    
+    ck <- compareCluster(geneCluster = genes, fun = enrichPathway, universe = bg, readable = TRUE, ...)
+    if (!is.null(ck)) {
+      # Term similarities via Jaccard Similarity index.
+      ego <- pairwise_termsim(ck)
+      
+      # Adjust plot height based on number of terms.
+      height = 4 + (0.1 * length(ego@compareClusterResult$Cluster))
+      
+      pdf(paste0(out, "/Reactome_Enrichments.Top20_perGroup.pdf"), width = 6, height = height)
+      p <- dotplot(ego, showCategory = 20, font.size = 9)
+      print(p)
+      p <- dotplot(ego, size = "count", showCategory = 20, font.size = 9)
+      print(p)
+      dev.off()
+      
+      pdf(paste0(out, "/Reactome_Enrichments.termsim.Top20_perGroup.pdf"), width = 9, height = 9)
+      p <- emapplot(ego, pie="count", cex_category=0.9, cex_label_category = 0.9, 
+                    layout="kk", repel = TRUE, showCategory = 20)
+      print(p)
+      dev.off()
+      
+      # Remove duplicate IDs.
+      gl <- gl[unique(names(gl))]
+      
+      # Network plot for each pathway with FC values.
+      for (x in ego@compareClusterResult$Description) {
+        # Some pathways have backslashes, which will break file creation.
+        x_out <- str_replace_all(x, "/", "_")
+        
+        # For when it inevitably wants to crash due to not finding a pathway name or such.
+        tryCatch(
+          {
+            pdf(paste0(out, "/Reactome_pathways/", x_out, ".pdf"), width = 11, height = 11)
+            p <- viewPathway(x, readable = TRUE, foldChange = gl)
+            vals <- p$data$color[!is.na(p$data$color)]
+            l <- max(abs(as.numeric(vals)))
+            p <- p + scale_color_gradient2(limits = c(-l,l), mid = "grey90", 
+                                           high = "red", low = "navyblue")
+            print(p)
+            dev.off()
+            dev.off()
+            dev.off()
+          },
+          error = function(e) {"bah"}
+        )
+      }
+      
+      saveRDS(ego, file = paste0(out, "/enrichPathway.reactome.RDS"))
+      ego <- as.data.frame(ego)
+      write.table(ego, file = paste0(out, "/enrichPathway.reactome.results.txt"), 
+                  sep = "\t", row.names = FALSE, quote = FALSE)
+    }
+  }
+}
+```
+
 ### CNV Calling from Methylation Array
+This spits out typical genome-wide CNV plots, segmentation files, bins, and IGV tracks from Illumina methylation arrays. Users can add details regions for labels if they'd like. When mixing both 450k and EPIC arrays, set `array_type = "overlap"`.
 ```r
 library("minfi")
 library("conumee")
+library("IlluminaHumanMethylationEPICanno.ilm10b4.hg19")
 
 #' @param meta Character scalar for theath to samplesheet with sample metadata, each row containing a sample.
 #' @param basedir Character scalar for the base directory containing IDATs.
@@ -486,7 +845,8 @@ run_conumee_CNV <- function(meta, basedir, controls, outdir, exclude_regions = N
   
   # This is a bugfix for EPIC arrays and the probes in the annotations by default being screwed up. 
   if (array_type %in% c("EPIC", "overlap")) {
-    anno@probes <- anno@probes[names(anno@probes) %in% names(minfi::getLocations(IlluminaHumanMethylationEPICanno.ilm10b4.hg19::IlluminaHumanMethylationEPICanno.ilm10b4.hg19))]
+    anno@probes <- anno@probes[names(anno@probes) %in% 
+      names(minfi::getLocations(IlluminaHumanMethylationEPICanno.ilm10b4.hg19))]
   }
   
   ## CNV Calling
