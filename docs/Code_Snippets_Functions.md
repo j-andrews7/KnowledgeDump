@@ -60,6 +60,9 @@ Occasionally, 3D dimensionality reduction plots can be kind of useful for explor
 library(plotly)
 library(SingleCellExperiment)
 library(dittoSeq)
+library(htmlwidgets)
+library(shinyjqui)
+
 
 #' @param sce SingleCellExperiment object.
 #' @param dimred Character scalar indicating the name of the dimensionality reduction to plot.
@@ -529,33 +532,39 @@ plot_le <- function(sce, gsea.lists, annot.by, group.by, outdir, use.assay, cell
         for (i in use.assay) {
           pl <- dittoPlotVarsAcrossGroups(sce[,cells.use], le, group.by = group.by, 
                                           plots = c("vlnplot", "jitter", "boxplot"), assay = i, sub = i,
-                                          vlnplot.lineweight = 0.4, boxplot.lineweight = 0.5, swap.rownames = swap.rownames)
+                                          vlnplot.lineweight = 0.4, boxplot.lineweight = 0.5, 
+                                          swap.rownames = swap.rownames)
           print(pl)
           pl <- dittoPlotVarsAcrossGroups(sce[,cells.use], le, group.by = group.by, 
                                           plots = c("vlnplot", "jitter", "boxplot"), 
                                           adjustment = "relative.to.max", assay = i, sub = i,
-                                          vlnplot.lineweight = 0.4, boxplot.lineweight = 0.5, swap.rownames = swap.rownames)
+                                          vlnplot.lineweight = 0.4, boxplot.lineweight = 0.5, 
+                                          swap.rownames = swap.rownames)
           print(pl)
           pl <- dittoPlotVarsAcrossGroups(sce[,cells.use], le, group.by = group.by, 
                                           plots = c("vlnplot", "jitter", "boxplot"), 
                                           adjustment = "none", assay = i, sub = i,
-                                          vlnplot.lineweight = 0.4, boxplot.lineweight = 0.5, swap.rownames = swap.rownames)
+                                          vlnplot.lineweight = 0.4, boxplot.lineweight = 0.5, 
+                                          swap.rownames = swap.rownames)
           print(pl)
           
           if (!is.null(group.by2) & !is.null(split.by)) {
             pl <- dittoPlotVarsAcrossGroups(sce, le, group.by = group.by2, split.by = split.by,
                                             plots = c("vlnplot", "jitter", "boxplot"), assay = i, sub = i,
-                                            vlnplot.lineweight = 0.4, boxplot.lineweight = 0.5, swap.rownames = swap.rownames)
+                                            vlnplot.lineweight = 0.4, boxplot.lineweight = 0.5, 
+                                            swap.rownames = swap.rownames)
             print(pl)
             pl <- dittoPlotVarsAcrossGroups(sce, le, group.by = group.by2, split.by = split.by,
                                             plots = c("vlnplot", "jitter", "boxplot"), 
                                             adjustment = "relative.to.max", assay = i, sub = i,
-                                            vlnplot.lineweight = 0.4, boxplot.lineweight = 0.5, swap.rownames = swap.rownames)
+                                            vlnplot.lineweight = 0.4, boxplot.lineweight = 0.5, 
+                                            swap.rownames = swap.rownames)
             print(pl)
             pl <- dittoPlotVarsAcrossGroups(sce, le, group.by = group.by2, split.by = split.by,
                                             plots = c("vlnplot", "jitter", "boxplot"), 
                                             adjustment = "none", assay = i, sub = i,
-                                            vlnplot.lineweight = 0.4, boxplot.lineweight = 0.5, swap.rownames = swap.rownames)
+                                            vlnplot.lineweight = 0.4, boxplot.lineweight = 0.5, 
+                                            swap.rownames = swap.rownames)
             print(pl)
           }
         }
@@ -566,12 +575,14 @@ plot_le <- function(sce, gsea.lists, annot.by, group.by, outdir, use.assay, cell
         for (i in use.assay) {
           pl <- dittoHeatmap(sce, le, annot.by = annot.by, cells.use = cells.use, show_colnames = FALSE,
                              breaks = seq(-3, 3, length.out = 51), cluster_rows = FALSE,
-                             fontsize_row = 6, cluster_cols = FALSE, assay = i, sub = i, swap.rownames = swap.rownames)
+                             fontsize_row = 6, cluster_cols = FALSE, assay = i, sub = i, 
+                             swap.rownames = swap.rownames)
           grid.draw(pl)
           
           pl <- dittoHeatmap(sce, le, annot.by = annot.by, show_colnames = FALSE,
                              breaks = seq(-3, 3, length.out = 51), cluster_rows = FALSE,
-                             fontsize_row = 6, cluster_cols = FALSE, assay = i, sub = i, swap.rownames = swap.rownames)
+                             fontsize_row = 6, cluster_cols = FALSE, assay = i, sub = i, 
+                             swap.rownames = swap.rownames)
           grid.draw(pl)
         }
         dev.off()
