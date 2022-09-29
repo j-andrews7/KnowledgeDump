@@ -1033,3 +1033,17 @@ fi
 }
 ```
 
+
+
+## File Manipulation Tasks
+
+### Randomly Downsample BAM to Set Number of Reads/Read Pairs
+
+For instance, to 5 million here. It will never keep a read but not its mate. From [biostars](https://www.biostars.org/p/9485840/#9485906).
+
+```bash
+reads=5000000
+bam=your.bam
+fraction=$(samtools idxstats $bam | cut -f3 | awk -v ct=$reads 'BEGIN {total=0} {total += $1} END {print ct/total}')
+samtools view -b -s ${fraction} foo.bam > sampled.bam
+```
