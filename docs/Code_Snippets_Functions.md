@@ -1037,6 +1037,9 @@ fi
 
 ## File Manipulation Tasks
 
+> If you don't love data cleaning, you don't love bioinformatics.
+> -some guy
+
 ### Randomly Downsample BAM to Set Number of Reads/Read Pairs
 
 For instance, to 5 million here. It will never keep a read but not its mate. From [biostars](https://www.biostars.org/p/9485840/#9485906).
