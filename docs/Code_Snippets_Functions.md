@@ -994,7 +994,6 @@ run_conumee_CNV(meta = "SampleMap.csv",
 ```r
 Reduce(intersect, list(a,b,c))
 ```
-```
 
 ## Python
 :snake: This is content.
