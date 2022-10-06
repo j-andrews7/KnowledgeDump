@@ -1042,7 +1042,7 @@ fi
 
 
 ### Differential Gene Expression via `DESeq2`
-This is a super lazy method to run through a list of contrasts and create differential gene expression results.
+This is a super lazy function to run through a list of contrasts and create differential gene expression results for each.
 
 ```r
 # Function to get lots of comparisons when fed a named list of contrasts.
