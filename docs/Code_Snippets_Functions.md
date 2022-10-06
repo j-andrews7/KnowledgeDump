@@ -990,6 +990,12 @@ run_conumee_CNV(meta = "SampleMap.csv",
                 name_col = "Sample")
 ```
 
+### Find Common Elements from Multiple Vectors
+```r
+Reduce(intersect, list(a,b,c))
+```
+```
+
 ## Python
 :snake: This is content.
 
@@ -1035,6 +1041,89 @@ fi
 
 
 
+### Differential Gene Expression via `DESeq2`
+This is a super lazy method to run through a list of contrasts and create differential gene expression results.
+
+```r
+# Function to get lots of comparisons when fed a named list of contrasts.
+get_DESEQ2_res <- function(dds, res.list, contrasts, alpha = 0.05, 
+						   lfc.th = c(log2(1.5), log2(2)), shrink.method = "apeglm", outdir = "./de") {
+  
+  dir.create(file.path(outdir), showWarnings = FALSE, recursive = TRUE)
+  
+  for (i in seq_along(contrasts)) {
+    rname <- names(contrasts)[i]
+    con <- contrasts[[i]]
+    coef <- paste(con[1], con[2], "vs", con[3], sep = "_")
+    # dds[[con[1]]] <- relevel(dds[[con[1]]], ref = con[3])
+    # dds <- DESeqDataSet(dds, design = as.formula(paste0("~", con[1])))
+    # dds <- DESeq(dds, BPPARAM = bpparam())
+
+    res1 <- results(dds, contrast = con, alpha = alpha)
+    res1$ENSEMBL <- rownames(res1)
+    res1$SYMBOL <- rowData(dds)$SYMBOL
+    
+    if (!is.null(shrink.method)) {
+      out.name <- paste0(rname, " - shrunken FC")
+      shrink <- lfcShrink(dds, res = res1, coef = coef, type = shrink.method)
+      shrink$ENSEMBL <- rownames(shrink)
+      shrink$SYMBOL <- rowData(dds)$SYMBOL
+      rownames(shrink) <- shrink$SYMBOL
+      shrink <- as.data.frame(shrink)
+      res.list[[out.name]] <- shrink
+      write.table(shrink, file = paste0(outdir, "/", rname, ".shrinkFC.padj.", alpha, ".txt"), 
+                  row.names = FALSE, quote = FALSE, sep = "\t")
+    }
+    
+    rownames(res1) <- res1$SYMBOL
+    res1 <- as.data.frame(res1)
+    res.list[[rname]] <- res1
+    
+    write.table(res1, file = paste0(outdir, "/", rname, ".padj.", alpha, ".txt"), 
+                  row.names = FALSE, quote = FALSE, sep = "\t")
+    
+    for (l in lfc.th) {
+      
+      res <- results(dds, contrast = con, alpha = alpha, lfcThreshold = l)
+      res$ENSEMBL <- rownames(res)
+      res$SYMBOL <- rowData(dds)$SYMBOL
+      
+      if (!is.null(shrink.method)) {
+        out.name <- paste0(rname, " - shrunken FC", " - LFC.th ", l)
+        shrink <- lfcShrink(dds, res = res, coef = coef, type = shrink.method)
+        shrink$ENSEMBL <- rownames(shrink)
+        shrink$SYMBOL <- rowData(dds)$SYMBOL
+        rownames(shrink) <- shrink$SYMBOL
+        shrink <- as.data.frame(shrink)
+        res.list[[out.name]] <- shrink
+        write.table(shrink, file = paste0(outdir, "/", rname, ".shrinkLFC_thresh.", l,".padj.", alpha, ".txt"), 
+                  row.names = FALSE, quote = FALSE, sep = "\t")
+      }
+      
+      rownames(res) <- res$SYMBOL
+      out.name <- paste0(rname, " - LFC.th ", l)
+      res <- as.data.frame(res)
+      res.list[[out.name]] <- res
+      
+      write.table(res, file = paste0(outdir, "/", rname, ".LFC_thresh.", l,".padj.", alpha, ".txt"), 
+                  row.names = FALSE, quote = FALSE, sep = "\t")
+    }
+  }
+  
+  return(res.list)
+}
+
+res <- list()
+
+contrasts = list("shPDGFRA_2.v.shScr" = c("shRNA", "shPDGFRA_2", "shScr"),
+                 "shPDGFRA_3.v.shScr" = c("shRNA", "shPDGFRA_3", "shScr"),
+                 "shZFP36L1_1.v.shScr" = c("shRNA", "shZFP36L1_1", "shScr"),
+                 "shZFP36L1_2.v.shScr" = c("shRNA", "shZFP36L1_2", "shScr"),
+                 "shPTPRZ1_3.v.shScr" = c("shRNA", "shPTPRZ1_3", "shScr"))
+                 
+res <- get_DESEQ2_res(dds, res.list = res, contrasts = contrasts)
+```
+
 ## File Manipulation Tasks
 
 > If you don't love data cleaning, you don't love bioinformatics.
@@ -1049,4 +1138,21 @@ reads=5000000
 bam=your.bam
 fraction=$(samtools idxstats $bam | cut -f3 | awk -v ct=$reads 'BEGIN {total=0} {total += $1} END {print ct/total}')
 samtools view -b -s ${fraction} foo.bam > sampled.bam
+```
+
+### BAM to FASTQ
+Gimme them reads back. Note that these may not be identical to the original FASTQ files if unaligned reads weren't retained in the BAM file. Note this is for an IBM LSF cluster, just yoink the `bamtofastq` command if you're running locally.
+
+```bash
+#!/bin/bash
+module load biobambam
+
+for f in *.bam; do
+
+    base="${f%%.bam}"
+
+    bsub -P xeno -J bambam -B -N -n 4 -R "rusage[mem=4GB]" -M 4GB -q priority "bamtofastq F=$base.1.fastq.gz F2=$base.2.fastq.gz \
+	    gz=1 filename=$f;
+
+done
 ```
