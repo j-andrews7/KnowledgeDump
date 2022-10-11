@@ -1130,6 +1130,18 @@ fi
 tar czf name_of_archive_file.tar.gz name_of_directory_to_tar
 ```
 
+### Remove All Chacters Up to Delimiter
+Includes first instance of delimiter. ':' is the delimiter in this case.
+
+```bash
+sed 's/^[^:]*://' file
+```
+
+Useful for file renaming as well, e.g.:
+```bash
+for f in *.idat.gz; do samp=$(echo "$f" | sed 's/^[^_]*_//'); mv "$f" "$samp"; done
+```
+
 ## File Manipulation Tasks
 
 > If you don't love data cleaning, you don't love bioinformatics.
