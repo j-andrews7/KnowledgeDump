@@ -222,6 +222,21 @@ celldata <- colData(sce)
 colData(sce) <- cbind(celldata, out$clusters)
 ```
 
+#### Downsample an SCE
+
+For testing stuff on smaller numbers of cells, etc.
+
+```r
+#' Downsample a SingleCellExperiment object
+#'
+#' @param sce SingleCellExperiment object.
+#' @param ncells Number of cells to downsample to.
+#' @return Downsampled SingleCellExperiment object.
+downsampleSCE <- function(sce, ncells) {
+keep <- sample(seq(1,ncol(sce),by=1), ncells, replace=FALSE)
+return(sce[,keep])
+}
+```
 
 ### GSEA
 #### High-throughput Functions with Plotting
