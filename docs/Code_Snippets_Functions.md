@@ -233,8 +233,8 @@ For testing stuff on smaller numbers of cells, etc.
 #' @param ncells Number of cells to downsample to.
 #' @return Downsampled SingleCellExperiment object.
 downsampleSCE <- function(sce, ncells) {
-keep <- sample(seq(1,ncol(sce),by=1), ncells, replace=FALSE)
-return(sce[,keep])
+	keep <- sample(seq(1,ncol(sce),by=1), ncells, replace=FALSE)
+	return(sce[,keep])
 }
 ```
 
@@ -933,10 +933,10 @@ library("minfi")
 library("conumee")
 library("IlluminaHumanMethylationEPICanno.ilm10b4.hg19")
 
-#' @param meta Character scalar for theath to samplesheet with sample metadata, each row containing a sample.
+#' @param meta Character scalar for the path to samplesheet with sample metadata, each row containing a sample.
 #' @param basedir Character scalar for the base directory containing IDATs.
-#' @param controls Character scalar or vector.
-#' @param outdir Character scalar or vector.
+#' @param controls Character vector for control sample names found in \code{name_col}.
+#' @param outdir Character scalar for output directory.
 #' @param exclude_regions GRanges object containing regions to exclude from the CN plots.
 #' @param detail_regions GRanges object containing regions to label.
 #' @param array_type Character scalar indicating more array type. Options are "450k", "EPIC", or "overlap" for
