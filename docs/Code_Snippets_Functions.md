@@ -53,62 +53,70 @@ df$summary
 
 ### Convert human to mouse gene symbols
 
-```r
-# Basic function to convert human to mouse gene names
-convertHumanGeneList <- function(x) {
-  require("biomaRt")
-  human = useMart("ensembl", dataset = "hsapiens_gene_ensembl")
-  mouse = useMart("ensembl", dataset = "mmusculus_gene_ensembl")
-  genesV2 = getLDS(attributes = c("hgnc_symbol"), filters = "hgnc_symbol", values = x , mart = human, attributesL = c("mgi_symbol"), martL = mouse, uniqueRows=T)
-  humanx <- unique(genesV2[, 2])
-  # Print the first 6 genes found to the screen
-  print(head(humanx))
-  return(humanx)
-}
-genes <- convertMouseGeneList(humGenes)
-```
+=== "Using babelgene"
+    ```r
+    library(babelgene)
+	orthologs(genes, species, human = TRUE, min_support = 3, top = TRUE)
+	```
 
-Alternative for when biomaRt is down (which is seemingly whenever I want to use it).
+=== "Using biomart"
+    ```r
+    library(biomart)
+    convertHumanGeneList <- function(x) {
+	   human <- useMart("ensembl", dataset = "hsapiens_gene_ensembl")
+	  mouse <- useMart("ensembl", dataset = "mmusculus_gene_ensembl")
+	  genesV2 <- getLDS(attributes = c("hgnc_symbol"), filters = "hgnc_symbol", values = x , 
+		  mart = human, attributesL = c("mgi_symbol"), martL = mouse, uniqueRows=T)
+	  humanx <- unique(genesV2[, 2])
+	  return(humanx)
+	}
+	genes <- convertMouseGeneList(humGenes)
+	```
 
-```r
-library(dplyr)
-mouse_human_genes = read.csv("http://www.informatics.jax.org/downloads/reports/HOM_MouseHumanSequence.rpt",sep="\t")
+=== "Using JAX homolog list"
+	```r
+	library(dplyr)
+	mouse_human_genes = read.csv("http://www.informatics.jax.org/downloads/reports/HOM_MouseHumanSequence.rpt",sep="\t")
+	
+	convert_mouse_to_human <- function(gene_list) {
+	
+	  output = c()
+	
+	  for(gene in gene_list){
+	    class_key = (mouse_human_genes %>% 
+		    filter(Symbol == gene & Common.Organism.Name=="mouse, laboratory"))[['DB.Class.Key']]
+	    if(!identical(class_key, integer(0))) {
+	      human_genes = (mouse_human_genes %>% 
+		      filter(DB.Class.Key == class_key & Common.Organism.Name=="human"))[,"Symbol"]
+	      for(human_gene in human_genes){
+	        output = append(output,human_gene)
+	      }
+	    }
+	  }
+	
+	  return (output)
+	}
+	
+	convert_human_to_mouse <- function(gene_list){
+	
+	  output = c()
+	
+	  for(gene in gene_list){
+	    class_key = (mouse_human_genes %>% filter(Symbol == gene & Common.Organism.Name=="human"))[['DB.Class.Key']]
+	    if(!identical(class_key, integer(0)) ){
+	      mouse_genes = (mouse_human_genes %>% filter(DB.Class.Key == class_key & Common.Organism.Name=="mouse, laboratory"))[,"Symbol"]
+	      for(mouse_gene in mouse_genes){
+	        output = append(output, mouse_gene)
+	      }
+	    }
+	  }
+	
+	  return (output)
+	}
+	```
 
-convert_mouse_to_human <- function(gene_list){
 
-  output = c()
-
-  for(gene in gene_list){
-    class_key = (mouse_human_genes %>% filter(Symbol == gene & Common.Organism.Name=="mouse, laboratory"))[['DB.Class.Key']]
-    if(!identical(class_key, integer(0)) ){
-      human_genes = (mouse_human_genes %>% filter(DB.Class.Key == class_key & Common.Organism.Name=="human"))[,"Symbol"]
-      for(human_gene in human_genes){
-        output = append(output,human_gene)
-      }
-    }
-  }
-
-  return (output)
-}
-
-convert_human_to_mouse <- function(gene_list){
-
-  output = c()
-
-  for(gene in gene_list){
-    class_key = (mouse_human_genes %>% filter(Symbol == gene & Common.Organism.Name=="human"))[['DB.Class.Key']]
-    if(!identical(class_key, integer(0)) ){
-      mouse_genes = (mouse_human_genes %>% filter(DB.Class.Key == class_key & Common.Organism.Name=="mouse, laboratory"))[,"Symbol"]
-      for(mouse_gene in mouse_genes){
-        output = append(output, mouse_gene)
-      }
-    }
-  }
-
-  return (output)
-}
-```
-
+Biomart goes down pretty often, so the `babelgene` option is more reliable.
 
 ### Viz
 
@@ -1077,7 +1085,7 @@ This is a super lazy function to run through a list of contrasts and create diff
 ```r
 # Function to get lots of comparisons when fed a named list of contrasts.
 get_DESEQ2_res <- function(dds, res.list, contrasts, alpha = 0.05, 
-						   lfc.th = c(log2(1.5), log2(2)), shrink.method = "apeglm", outdir = "./de") {
+						   lfc.th = c(log2(1.5), log2(2)), shrink.method = "apeglm", outdir = "./de", BPPARAM = NULL) {
   
   dir.create(file.path(outdir), showWarnings = FALSE, recursive = TRUE)
   
@@ -1085,16 +1093,16 @@ get_DESEQ2_res <- function(dds, res.list, contrasts, alpha = 0.05,
     rname <- names(contrasts)[i]
     con <- contrasts[[i]]
     coef <- paste(con[1], con[2], "vs", con[3], sep = "_")
-    # dds[[con[1]]] <- relevel(dds[[con[1]]], ref = con[3])
-    # dds <- DESeqDataSet(dds, design = as.formula(paste0("~", con[1])))
-    # dds <- DESeq(dds, BPPARAM = bpparam())
+    dds[[con[1]]] <- relevel(dds[[con[1]]], ref = con[3])
+    dds <- DESeqDataSet(dds, design = as.formula(paste0("~", con[1])))
+    dds <- DESeq(dds, BPPARAM = BPPARAM)
 
     res1 <- results(dds, contrast = con, alpha = alpha)
     res1$ENSEMBL <- rownames(res1)
     res1$SYMBOL <- rowData(dds)$SYMBOL
     
     if (!is.null(shrink.method)) {
-      out.name <- paste0(rname, " - shrunken FC")
+      out.name <- paste0(rname, " - shrLFC")
       shrink <- lfcShrink(dds, res = res1, coef = coef, type = shrink.method)
       shrink$ENSEMBL <- rownames(shrink)
       shrink$SYMBOL <- rowData(dds)$SYMBOL
@@ -1119,7 +1127,7 @@ get_DESEQ2_res <- function(dds, res.list, contrasts, alpha = 0.05,
       res$SYMBOL <- rowData(dds)$SYMBOL
       
       if (!is.null(shrink.method)) {
-        out.name <- paste0(rname, " - shrunken FC", " - LFC.th ", l)
+        out.name <- paste0(rname, " - shrLFC.th ", l)
         shrink <- lfcShrink(dds, res = res, coef = coef, type = shrink.method)
         shrink$ENSEMBL <- rownames(shrink)
         shrink$SYMBOL <- rowData(dds)$SYMBOL
