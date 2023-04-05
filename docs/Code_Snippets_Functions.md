@@ -51,6 +51,65 @@ df <- queryMany(c(1017, 1018, "ENSG00000148795", "LAIR1"),
 df$summary
 ```
 
+### Convert human to mouse gene symbols
+
+```r
+# Basic function to convert human to mouse gene names
+convertHumanGeneList <- function(x) {
+  require("biomaRt")
+  human = useMart("ensembl", dataset = "hsapiens_gene_ensembl")
+  mouse = useMart("ensembl", dataset = "mmusculus_gene_ensembl")
+  genesV2 = getLDS(attributes = c("hgnc_symbol"), filters = "hgnc_symbol", values = x , mart = human, attributesL = c("mgi_symbol"), martL = mouse, uniqueRows=T)
+  humanx <- unique(genesV2[, 2])
+  # Print the first 6 genes found to the screen
+  print(head(humanx))
+  return(humanx)
+}
+genes <- convertMouseGeneList(humGenes)
+```
+
+Alternative for when biomaRt is down (which is seemingly whenever I want to use it).
+
+```r
+library(dplyr)
+mouse_human_genes = read.csv("http://www.informatics.jax.org/downloads/reports/HOM_MouseHumanSequence.rpt",sep="\t")
+
+convert_mouse_to_human <- function(gene_list){
+
+  output = c()
+
+  for(gene in gene_list){
+    class_key = (mouse_human_genes %>% filter(Symbol == gene & Common.Organism.Name=="mouse, laboratory"))[['DB.Class.Key']]
+    if(!identical(class_key, integer(0)) ){
+      human_genes = (mouse_human_genes %>% filter(DB.Class.Key == class_key & Common.Organism.Name=="human"))[,"Symbol"]
+      for(human_gene in human_genes){
+        output = append(output,human_gene)
+      }
+    }
+  }
+
+  return (output)
+}
+
+convert_human_to_mouse <- function(gene_list){
+
+  output = c()
+
+  for(gene in gene_list){
+    class_key = (mouse_human_genes %>% filter(Symbol == gene & Common.Organism.Name=="human"))[['DB.Class.Key']]
+    if(!identical(class_key, integer(0)) ){
+      mouse_genes = (mouse_human_genes %>% filter(DB.Class.Key == class_key & Common.Organism.Name=="mouse, laboratory"))[,"Symbol"]
+      for(mouse_gene in mouse_genes){
+        output = append(output, mouse_gene)
+      }
+    }
+  }
+
+  return (output)
+}
+```
+
+
 ### Viz
 
 #### 3D tSNE/UMAP/PCA
@@ -1009,6 +1068,8 @@ run_conumee_CNV(meta = "SampleMap.csv",
 ```r
 Reduce(intersect, list(a,b,c))
 ```
+
+
 
 ### Differential Gene Expression via `DESeq2`
 This is a super lazy function to run through a list of contrasts and create differential gene expression results for each.
