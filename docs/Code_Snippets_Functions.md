@@ -856,18 +856,33 @@ run_enrichPathway <- function(res.list, padj.th = 0.05, lfc.th = 0, outdir = "./
       ego <- pairwise_termsim(ck)
       
       # Adjust plot height based on number of terms.
-      height = 4 + (0.1 * length(ego@compareClusterResult$Cluster))
+      height = 3.5 + (0.015 * length(ego@compareClusterResult$Cluster))
       
       pdf(paste0(out, "/Reactome_Enrichments.Top20_perGroup.pdf"), width = 6, height = height)
-      p <- dotplot(ego, showCategory = 20, font.size = 9)
+      p <- dotplot(ego, showCategory = 20, font.size = 8)
       print(p)
-      p <- dotplot(ego, size = "count", showCategory = 20, font.size = 9)
+      p <- dotplot(ego, size = "count", showCategory = 20, font.size = 8)
       print(p)
       dev.off()
       
       pdf(paste0(out, "/Reactome_Enrichments.termsim.Top20_perGroup.pdf"), width = 9, height = 9)
       p <- emapplot(ego, pie="count", cex_category=0.9, cex_label_category = 0.9, 
                     layout="kk", repel = TRUE, showCategory = 20)
+      print(p)
+      dev.off()
+      
+      pdf(paste0(out, "/Reactome_Enrichments.termsim.Top30_Tree.pdf"), width = 17, height = 12)
+      p <- treeplot(ego, showCategory = 30, fontsize = 4, offset.params = list(bar_tree = rel(1.4), tiplab = rel(1.4), extend = 0.3, hexpand = 0.1), cluster.params = list(method = "ward.D", n = 6, color = NULL, label_words_n = 5, label_format = 30))
+      print(p)
+      dev.off()
+        
+      pdf(paste0(out, "/Reactome_Enrichments.termsim.Top10_FullNet.pdf"), width = 15, height = 15)
+      p <- cnetplot(ego, showCategory = 10, cex.params = list(category_label = 1.3, gene_label = 0.9, category_node = 1, gene_node = 1), layout = "kk")
+      print(p)
+      dev.off()
+      
+      pdf(paste0(out, "/Reactome_Enrichments.termsim.Top5_FullNet.pdf"), width = 12, height = 12)
+      p <- cnetplot(ego, showCategory = 5, cex.params = list(category_label = 1.3, gene_label = 0.9, category_node = 1, gene_node = 1), layout = "kk")
       print(p)
       dev.off()
       
@@ -918,9 +933,13 @@ run_enrichPathway(res)
 #' @param OrgDb Character scalar for annotation database to use.
 #' @param id.col Character scalar indicating name of gene ID column for each data.frame in \code{res.list}
 #' @param id.type Character scalar indicating type of gene ID used. See \code{keytypes(org.Hs.eg.db)} for all options.
-#' @param ... Passed to \code{compareCluster}.
+#' @param onts Character vector indicating ontologies to test individually. 
+#'   Options must be one or more of "ALL", "BP", "CC", or "MF". 
+#'   Default uses all of those options. 
+#' @param ... Passed to \code{compareCluster}
 run_enrichGO <- function(res.list, padj.th = 0.05, lfc.th = 0, outdir = "./enrichments",
-                         OrgDb = "org.Hs.eg.db", id.col = "ENSEMBL", id.type = "ENSEMBL", ...) {
+                         OrgDb = "org.Hs.eg.db", id.col = "ENSEMBL", id.type = "ENSEMBL", 
+                         onts = c("BP", "MF", "CC", "ALL"), ...) {
   # Do GO enrichment on up/downregulated genes.
   for (r in names(res.list)) {
     df <- res[[r]]
@@ -959,38 +978,57 @@ run_enrichGO <- function(res.list, padj.th = 0.05, lfc.th = 0, outdir = "./enric
     bg <- df[[id.col]][!is.na(df$padj)]
     bg <- bitr(bg, fromType = id.type, toType = "ENTREZID", OrgDb = OrgDb)$ENTREZID
     
-    ck <- compareCluster(geneCluster = genes, fun = enrichGO, universe = bg, 
-                         readable = TRUE, ont = "ALL", OrgDb = OrgDb, ...)
+    for (ont %in% onts) {
     
-    if (!is.null(ck)) {
-      # Term similarities via Jaccard Similarity index.
-      ego <- pairwise_termsim(ck)
+      ck <- compareCluster(geneCluster = genes, fun = enrichGO, universe = bg, 
+                           readable = TRUE, ont = ont, OrgDb = OrgDb, ...)
       
-      # Adjust plot height based on number of terms.
-      height = 3 + (0.05 * length(ego@compareClusterResult$Cluster))
-      
-      pdf(paste0(out, "/GO_Enrichments.Top20_perGroup.pdf"), width = 6, height = height)
-      p <- dotplot(ego, showCategory = 20, font.size = 9)
-      print(p)
-      p <- dotplot(ego, size = "count", showCategory = 20, font.size = 9)
-      print(p)
-      dev.off()
-      
-      # pdf(paste0(out, "/GO_Enrichments.termsim.Top20_perGroup.pdf"), width = 9, height = 9)
-      # p <- emapplot(ego, pie="count", cex_category=0.9, cex_label_category = 0.9, 
-      #               layout="kk", repel = TRUE, showCategory = 20)
-      # print(p)
-      # dev.off()
-      
-      saveRDS(ego, file = paste0(out, "/enrichGO.RDS"))
-      ego <- as.data.frame(ego)
-      write.table(ego, file = paste0(out, "/enrichGO.results.txt"), 
-                  sep = "\t", row.names = FALSE, quote = FALSE)
+      if (!is.null(ck)) {
+        # Term similarities via Jaccard Similarity index.
+        ego <- pairwise_termsim(ck)
+        
+        # Adjust plot height based on number of terms.
+        height = 2.5 + (0.015 * length(ego@compareClusterResult$Cluster))
+        
+        pdf(paste0(out, "/GO_Enrichments.Top20_perGroup.", ont, ".pdf"), width = 6, height = height)
+        p <- dotplot(ego, showCategory = 20, font.size = 9)
+        print(p)
+        p <- dotplot(ego, size = "count", showCategory = 20, font.size = 9)
+        print(p)
+        dev.off()
+        
+        pdf(paste0(out, "/GO_Enrichments.termsim.Top20_perGroup.", ont, ".pdf"), width = 9, height = 9)
+        p <- emapplot(ego, pie="count", cex_category=0.9, cex_label_category = 0.9,
+                      layout="kk", repel = TRUE, showCategory = 20)
+        print(p)
+        dev.off()
+        
+        pdf(paste0(out, "/GO_Enrichments.termsim.Top30_Tree.", ont, ".pdf"), width = 17, height = 12)
+        p <- treeplot(ego, showCategory = 30, fontsize = 4, offset.params = list(bar_tree = rel(1.4), tiplab = rel(1.4), extend = 0.3, hexpand = 0.1), cluster.params = list(method = "ward.D", n = 6, color = NULL, label_words_n = 5, label_format = 30))
+        print(p)
+        dev.off()
+        
+        pdf(paste0(out, "/GO_Enrichments.termsim.Top10_FullNet.", ont, ".pdf"), width = 15, height = 15)
+        p <- cnetplot(ego, showCategory = 10, cex.params = list(category_label = 1.3, gene_label = 0.9, category_node = 1, gene_node = 1), layout = "kk")
+        print(p)
+        dev.off()
+        
+        pdf(paste0(out, "/GO_Enrichments.termsim.Top5_FullNet.", ont, ".pdf"), width = 13, height = 13)
+        p <- cnetplot(ego, showCategory = 5, cex.params = list(category_label = 1.3, gene_label = 0.9, category_node = 1, gene_node = 1), layout = "kk")
+        print(p)
+        dev.off()
+        
+        saveRDS(ego, file = paste0(out, "/enrichGO.", ont, ".RDS"))
+        ego <- as.data.frame(ego)
+        write.table(ego, file = paste0(out, "/enrichGO.results.", ont, ".txt"), 
+                    sep = "\t", row.names = FALSE, quote = FALSE)
+      }
     }
   }
 }
 
 run_enrichGO(res)
+```
 ```
 
 ### CNV Calling from Methylation Array
