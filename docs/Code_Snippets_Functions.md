@@ -1244,7 +1244,63 @@ fi
 }
 ```
 
+#### Concatenate FASTQs for Given Sample
 
+For merging reads across multiple lanes, etc.
+
+```bash
+function concat_fastq {
+
+    sample=$1
+
+    if [[ -z "$sample" ]]; then
+        echo "A sample name must be provided as an argument."
+        return 1
+    fi
+
+
+    # Check if files for R2 exist
+    if ls "${sample}"_L00*_R2_001.fastq.gz 1> /dev/null 2>&1; then
+        # This is a paired-end sample
+        echo "Processing paired-end sample: $sample"
+
+        # Concatenate R1
+        cat "${sample}"_L00*_R1_001.fastq.gz > "${sample}_merged_R1_001.fastq.gz"
+        if [[ $? -ne 0 ]]; then
+            echo "An error occurred while concatenating R1 files."
+            return 1
+        fi
+
+        # Concatenate R2
+        cat "${sample}"_L00*_R2_001.fastq.gz > "${sample}_merged_R2_001.fastq.gz"
+
+        if [[ $? -ne 0 ]]; then
+            echo "An error occurred while concatenating R2 files."
+            return 1
+        fi
+    else
+
+        # This is a single-end sample
+        echo "Processing single-end sample: $sample"
+
+        # Concatenate R1 only
+        cat "${sample}"_L00*_R1_001.fastq.gz > "${sample}_merged_R1_001.fastq.gz"
+        if [[ $? -ne 0 ]]; then
+            echo "An error occurred while concatenating R1 files."
+            return 1
+        fi
+    fi
+
+    echo "Concatenation complete for sample: $sample"
+}
+```
+
+To use from a directory of FASTQs:
+```bash
+for sample_name in $(ls *_L00*_R1_001.fastq.gz | rev | cut -d'_' -f4- | rev | sort | uniq); do
+    concat_fastq "$sample_name"
+done
+```
 
 ### `tar` and `gzip` Directory
 
@@ -1252,7 +1308,7 @@ fi
 tar czf name_of_archive_file.tar.gz name_of_directory_to_tar
 ```
 
-### Remove All Chacters Up to Delimiter
+### Remove All Characters Up to Delimiter
 Includes first instance of delimiter. ':' is the delimiter in this case.
 
 ```bash
@@ -1292,7 +1348,7 @@ for f in *.bam; do
     base="${f%%.bam}"
 
     bsub -P xeno -J bambam -B -N -n 4 -R "rusage[mem=4GB]" -M 4GB -q priority "bamtofastq F=$base.1.fastq.gz F2=$base.2.fastq.gz \
-	    gz=1 filename=$f;
+	    gz=1 filename=$f;"
 
 done
 ```
