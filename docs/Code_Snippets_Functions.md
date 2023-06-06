@@ -1122,7 +1122,8 @@ This is a super lazy function to run through a list of contrasts and create diff
 
 ```r
 # Function to get lots of comparisons when fed a named list of contrasts.
-get_DESEQ2_res <- function(dds, res.list, contrasts, alpha = 0.05, 
+# Block can be a vector of multiple terms that need to be considered in the model beyond the main effect.
+get_DESEQ2_res <- function(dds, res.list, contrasts, block = NULL, alpha = 0.05, 
 						   lfc.th = c(log2(1.5), log2(2)), shrink.method = "apeglm", outdir = "./de", BPPARAM = NULL) {
   
   dir.create(file.path(outdir), showWarnings = FALSE, recursive = TRUE)
@@ -1132,7 +1133,14 @@ get_DESEQ2_res <- function(dds, res.list, contrasts, alpha = 0.05,
     con <- contrasts[[i]]
     coef <- paste(con[1], con[2], "vs", con[3], sep = "_")
     dds[[con[1]]] <- relevel(dds[[con[1]]], ref = con[3])
-    dds <- DESeqDataSet(dds, design = as.formula(paste0("~", con[1])))
+    
+    if (!is.null(block)) {
+      design <- as.formula(paste0("~",paste0(c(block, con[1]), collapse = "+")))
+    } else {
+      design <- paste0("~", con[1])
+    }
+    
+    dds <- DESeqDataSet(dds, design = design)
     dds <- DESeq(dds, BPPARAM = BPPARAM)
 
     res1 <- results(dds, contrast = con, alpha = alpha)
@@ -1140,7 +1148,7 @@ get_DESEQ2_res <- function(dds, res.list, contrasts, alpha = 0.05,
     res1$SYMBOL <- rowData(dds)$SYMBOL
     
     if (!is.null(shrink.method)) {
-      out.name <- paste0(rname, " - shrLFC")
+      out.name <- paste0(rname, "-shLFC")
       shrink <- lfcShrink(dds, res = res1, coef = coef, type = shrink.method)
       shrink$ENSEMBL <- rownames(shrink)
       shrink$SYMBOL <- rowData(dds)$SYMBOL
@@ -1165,7 +1173,7 @@ get_DESEQ2_res <- function(dds, res.list, contrasts, alpha = 0.05,
       res$SYMBOL <- rowData(dds)$SYMBOL
       
       if (!is.null(shrink.method)) {
-        out.name <- paste0(rname, " - shrLFC.th ", l)
+        out.name <- paste0(rname, "-shLFC", l)
         shrink <- lfcShrink(dds, res = res, coef = coef, type = shrink.method)
         shrink$ENSEMBL <- rownames(shrink)
         shrink$SYMBOL <- rowData(dds)$SYMBOL
@@ -1177,7 +1185,7 @@ get_DESEQ2_res <- function(dds, res.list, contrasts, alpha = 0.05,
       }
       
       rownames(res) <- res$SYMBOL
-      out.name <- paste0(rname, " - LFC.th ", l)
+      out.name <- paste0(rname, "-LFC", l)
       res <- as.data.frame(res)
       res.list[[out.name]] <- res
       
