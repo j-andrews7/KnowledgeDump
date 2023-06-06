@@ -1123,7 +1123,8 @@ This is a super lazy function to run through a list of contrasts and create diff
 ```r
 # Function to get lots of comparisons when fed a named list of contrasts.
 # Block can be a vector of multiple terms that need to be considered in the model beyond the main effect.
-get_DESEQ2_res <- function(dds, res.list, contrasts, block = NULL, alpha = 0.05, 
+# model.matrix allows a full matrix to be passed, which allows for manual-editing to remove non-rank columns if needed.
+get_DESEQ2_res <- function(dds, res.list, contrasts, block = NULL, model.matrix = NULL, design = NULL, alpha = 0.05, 
 						   lfc.th = c(log2(1.5), log2(2)), shrink.method = "apeglm", outdir = "./de", BPPARAM = NULL) {
   
   dir.create(file.path(outdir), showWarnings = FALSE, recursive = TRUE)
@@ -1134,7 +1135,11 @@ get_DESEQ2_res <- function(dds, res.list, contrasts, block = NULL, alpha = 0.05,
     coef <- paste(con[1], con[2], "vs", con[3], sep = "_")
     dds[[con[1]]] <- relevel(dds[[con[1]]], ref = con[3])
     
-    if (!is.null(block)) {
+    if (!is.null(matrix.model)) {
+      design <- matrix.model
+    } else if (!is.null(design)) {
+      design <- design
+    } else if (!is.null(block)) {
       design <- as.formula(paste0("~",paste0(c(block, con[1]), collapse = "+")))
     } else {
       design <- paste0("~", con[1])
