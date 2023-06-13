@@ -1125,16 +1125,25 @@ This is a super lazy function to run through a list of contrasts and create diff
 # Block can be a vector of multiple terms that need to be considered in the model beyond the main effect.
 # design allows a full matrix to be passed, which allows for manual-editing to remove non-rank columns if needed.
 # Or just a typical design formula.
-get_DESEQ2_res <- function(dds, res.list, contrasts, block = NULL, design = NULL, alpha = 0.05, 
+# If providing a model matrix, be sure to set user.mat = TRUE.
+get_DESEQ2_res <- function(dds, res.list, contrasts, user.mat = FALSE, block = NULL, design = NULL, alpha = 0.05, 
 						   lfc.th = c(log2(1.5), log2(2)), shrink.method = "apeglm", outdir = "./de", BPPARAM = NULL) {
   
   dir.create(file.path(outdir), showWarnings = FALSE, recursive = TRUE)
   
   for (i in seq_along(contrasts)) {
     rname <- names(contrasts)[i]
-    con <- contrasts[[i]]
-    coef <- paste(con[1], con[2], "vs", con[3], sep = "_")
-    dds[[con[1]]] <- relevel(dds[[con[1]]], ref = con[3])
+    
+    # If user-supplied matrix, contrast must be in list format.
+    if (user.mat) {
+      con <- contrasts[[i]]
+      message("Setting shrink.method to 'ashr' to work with list contrasts due to user-specified model matrix.")
+      shrink.method <- "ashr"
+    } else {
+      con <- contrasts[[i]]
+      coef <- paste(con[1], con[2], "vs", con[3], sep = "_")
+      dds[[con[1]]] <- relevel(dds[[con[1]]], ref = con[3])
+    }
     
     if (!is.null(design)) {
       design <- design
@@ -1153,6 +1162,11 @@ get_DESEQ2_res <- function(dds, res.list, contrasts, block = NULL, design = NULL
     
     if (!is.null(shrink.method)) {
       out.name <- paste0(rname, "-shLFC")
+      
+      # ashr does not need coef, this is to ensure no error with user-supplied model matrix/list contrasts
+      if (shrink.method == "ashr") {
+        coef <- NULL
+      }
       shrink <- lfcShrink(dds, res = res1, coef = coef, type = shrink.method)
       shrink$ENSEMBL <- rownames(shrink)
       shrink$SYMBOL <- rowData(dds)$SYMBOL
@@ -1177,6 +1191,10 @@ get_DESEQ2_res <- function(dds, res.list, contrasts, block = NULL, design = NULL
       res$SYMBOL <- rowData(dds)$SYMBOL
       
       if (!is.null(shrink.method)) {
+        # ashr does not need coef, this is to ensure no error with user-supplied model matrix/list contrasts
+        if (shrink.method == "ashr") {
+          coef <- NULL
+        }
         out.name <- paste0(rname, "-shLFC", l)
         shrink <- lfcShrink(dds, res = res, coef = coef, type = shrink.method)
         shrink$ENSEMBL <- rownames(shrink)
