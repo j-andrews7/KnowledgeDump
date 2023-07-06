@@ -318,21 +318,32 @@ library("dplyr")
 library("gridExtra")
 library("BiocParallel")
 
-#' Run GSEA via fgsea.
+#' Run Gene Set Enrichment Analysis (GSEA) with MSigDb signatures
 #'
-#' @param msigs A set of gene sets as returned by \code{msigdbr}.
-#' @param ranked.genes A vector of gene identifiers ranked by a test statistic, effect size, etc.
-#' @param outdir Character scalar indicating the output directory.
-#' @param outprefix Character scalar indicating the output prefix for files.
-#' @param xlsx A named list containing results from previous runs. Allows for
-#'   more brainless looping.
-#' @param cats A character scalar or vector containing MSigDB categories
-#'   to use from full set of gene sets.
-#' @param subcats A character scalar or vector for subcategories within each category to limit to.
-#'   If provided, should be the same length as \code{cats}.
-#' @param ... Additional arguments passed to \code{fgsea}.
-#' @return xlsx, a named list of GSEA results for each (sub)category.
+#' This function performs GSEA on a named list of ranked genes, and restricts the analysis to specific MSigDb 
+#' collections of gene signatures using the 'cats' and 'subcats' arguments.
 #'
+#' @param msigs A dataframe containing all MSigDb gene signatures.
+#' @param ranked.genes A named list of ranked genes.
+#' @param outdir The output directory for results.
+#' @param outprefix The prefix for output files.
+#' @param xlsx A list to store results that will be later written to an Excel file. Defaults to NULL.
+#' @param cats A character vector specifying the main categories of gene sets to consider from MSigDb. Defaults to "H".
+#' @param subcats A character vector specifying the subcategories of gene sets to consider from MSigDb. Must match in length with 'cats'. Defaults to NULL.
+#' @param ... Additional arguments to pass to the 'fgsea' function.
+#'
+#' @return A list of GSEA results if 'xlsx' is not NULL, otherwise, results are saved as files in the specified output directory.
+#'
+#' @examples
+#' \dontrun{
+#' runGSEA(msigs = msigdb, ranked.genes = my_genes, outdir = "./results", outprefix = "experiment1", 
+#'         xlsx = list(), cats = c("H", "C3"), subcats = c("BP", "MIR"))
+#' }
+#' 
+#' @note Ensure that 'cats' and 'subcats' vectors have equal lengths.
+#' @note The function creates various output files including detailed GSEA results, enrichment plots, and tables of top enriched pathways.
+#' 
+#' @author Jared Andrews
 runGSEA <- function(msigs, ranked.genes, outdir, outprefix, 
                     xlsx = NULL, cats = "H", subcats = NULL, ...) {
   if (length(cats) != length(subcats)) {
@@ -449,7 +460,28 @@ runGSEA <- function(msigs, ranked.genes, outdir, outprefix,
   }
 }
 
-
+#' Run Gene Set Enrichment Analysis (GSEA) with custom signatures
+#'
+#' This function performs GSEA on a named list of ranked genes.
+#'
+#' @param sigs A named list of gene signatures.
+#' @param ranked.genes A named list of ranked genes.
+#' @param outdir The output directory for results.
+#' @param outprefix The prefix for output files.
+#' @param xlsx A list to store results that will be later written to an Excel file. Defaults to NULL.
+#' @param ... Additional arguments to pass to the 'fgsea' function.
+#'
+#' @return A list of GSEA results if 'xlsx' is not NULL, otherwise, results are saved as files in the specified output directory.
+#'
+#' @examples
+#' \dontrun{
+#' runCustomGSEA(msigs = msigdb, ranked.genes = my_genes, outdir = "./results", outprefix = "experiment1", 
+#'         xlsx = list())
+#' }
+#' 
+#' @note The function creates various output files including detailed GSEA results, enrichment plots, and tables of top enriched pathways.
+#' 
+#' @author Jared Andrews
 runCustomGSEA <- function(sigs, ranked.genes, outdir, 
                           outprefix, xlsx = NULL, ...) {
   # Basically the same function as above except 'sigs' is just
@@ -546,6 +578,24 @@ runCustomGSEA <- function(sigs, ranked.genes, outdir,
 The above is nice for generate results for all the significant hits, but it's not a great summary of them. The below will take those results and plot the top X number of significant genesets, ranked by adjusted p-value, for each collection as a plot.
 
 ```r
+#' Summarize Gene Set Enrichment Analysis (GSEA) Results
+#'
+#' This function summarizes GSEA results by selecting the top significant gene sets. It creates an output directory
+#' and saves the summarized results into this directory.
+#'
+#' @param gsea.list A list of GSEA results as returned by `runGSEA` or `runCustomGSEA`.
+#' @param outdir The output directory for summarized results.
+#' @param padj.th The significance threshold (adjusted p-value) for filtering gene sets. Defaults to 0.05.
+#' @param top The number of top significant gene sets to consider. Defaults to 75.
+#'
+#' @return Invisible. The function creates an output directory and saves the summarized results there.
+#'
+#' @examples
+#' \dontrun{
+#' summarize_GSEA(gsea.list = my_gsea_results, outdir = "./summary", padj.th = 0.01, top = 50)
+#' }
+#'
+#' @author Jared Andrews
 summarize_GSEA <- function(gsea.list, outdir, padj.th = 0.05, top = 75) {
   dir.create(outdir, showWarnings = FALSE, recursive = TRUE)
   
@@ -589,6 +639,36 @@ summarize_GSEA(xl.lists, outdir = "./GSEA/RA.v.vehicle")
 GSEA returns the leading edge genes that are driving the score for a given signature. It can be useful to have a closer look at these genes in the form of boxplots and/or heatmaps.
 
 ```r
+#' Plot Leading Edge Genes from GSEA
+#'
+#' This function plots the leading edge genes from a GSEA analysis, which are the core genes that contribute to 
+#' the enrichment signal. These plots can help understand the gene expression patterns in the form of boxplots or heatmaps.
+#'
+#' @param dds A DESeqDataSet object.
+#' @param gsea.lists A list of GSEA results as returned by `runGSEA` or `runCustomGSEA`.
+#' @param annot.by A character string or vector for column name(s) in `colData(dds)` by which to annotate the samples
+#' @param group.by A character string or vector for column name(s) in `colData(dds)` by which to group the samples
+#' @param outdir The directory where the output plots should be saved.
+#' @param use.assay A character string specifying the assay to use from the 'dds' object.
+#' @param cells.use A character vector specifying the cells to include in the plot.
+#' @param sig.thresh The significance threshold (adjusted p-value) for selecting gene sets. Defaults to 0.05.
+#' @param group.by2 A secondary character string or vector for column name(s) in `colData(dds)` to further group the samples. Defaults to NULL.
+#' @param split.by A character string or vector for column name(s) in `colData(dds)` to split the plot into multiple facets. Defaults to NULL.
+#' @param swap.rownames A character string for `rowData` column to switch the rownames (e.g. "SYMBOL"). Defaults to NULL.
+#' @param order.by A character string or vector for column name(s) in `colData(dds)` by which to order the samples Defaults to NULL.
+#'
+#' @return Invisible. The function saves the plots to the specified output directory.
+#'
+#' @examples
+#' \dontrun{
+#' plot_le(dds = my_dds, gsea.lists = my_gsea_results, annot.by = "group", group.by = "condition", 
+#'         outdir = "./plots", use.assay = "counts", cells.use = c("cell1", "cell2"), 
+#'         sig.thresh = 0.01, group.by2 = "timepoint", split.by = "treatment")
+#' }
+#'
+#' @note The function may take a long time to execute if many gene sets are provided.
+#'
+#' @author Jared Andrews
 plot_le <- function(sce, gsea.lists, annot.by, group.by, outdir, use.assay, cells.use, sig.thresh = 0.05, 
 					group.by2 = NULL, split.by = NULL, swap.rownames = NULL) {
   
