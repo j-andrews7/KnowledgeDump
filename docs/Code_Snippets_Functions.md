@@ -1029,7 +1029,7 @@ run_enrichGO <- function(res.list, padj.th = 0.05, lfc.th = 0, outdir = "./enric
 
 run_enrichGO(res)
 ```
-```
+
 
 ### CNV Calling from Methylation Array
 This spits out typical genome-wide CNV plots, segmentation files, bins, and IGV tracks from Illumina methylation arrays. Users can add details regions for labels if they'd like. When mixing both 450k and EPIC arrays, set `array_type = "overlap"`.
@@ -1121,11 +1121,31 @@ Reduce(intersect, list(a,b,c))
 This is a super lazy function to run through a list of contrasts and create differential gene expression results for each.
 
 ```r
-# Function to get lots of comparisons when fed a named list of contrasts.
-# Block can be a vector of multiple terms that need to be considered in the model beyond the main effect.
-# design allows a full matrix to be passed, which allows for manual-editing to remove non-rank columns if needed.
-# Or just a typical design formula.
-# If providing a model matrix, be sure to set user.mat = TRUE.
+#' Get DESeq2 Results
+#'
+#' This function obtains a set of comparisons from a DESeq2 analysis, given a named list of contrasts. It allows additional model 
+#' parameters to be specified and a design matrix to be manually adjusted. 
+#'
+#' @param dds An object of class DESeqDataSet.
+#' @param res.list A list of DESeq2 result tables. Allows the fuction to be run multiple times if needed and append to the same list.
+#' @param contrasts A named list of contrasts.
+#' @param user.mat A logical indicating whether a user-specified model matrix is provided. Defaults to FALSE.
+#' @param block A vector of additional terms to be considered in the model, beyond the main effect. Defaults to NULL.
+#' @param design The design formula or matrix. If a matrix is provided, ensure 'user.mat' is set to TRUE. Defaults to NULL.
+#' @param alpha The significance level for hypothesis testing. Defaults to 0.05.
+#' @param lfc.th A numeric vector of log2 fold-change thresholds. Defaults to c(log2(1.5), log2(2)).
+#' @param shrink.method The method used for shrinkage estimation. Defaults to "apeglm".
+#' @param outdir The directory where the output should be saved. Defaults to "./de".
+#' @param BPPARAM The BiocParallelParam object specifying the parallel back-end to be used. Defaults to NULL.
+#' 
+#' @return A list of DESeq2 result tables for the specified contrasts, saved to the specified output directory.
+#' 
+#' @examples
+#' \dontrun{
+#' get_DESEQ2_res(dds, res.list, contrasts, user.mat = TRUE, block = c("term1", "term2"), 
+#'                design = my_design, alpha = 0.01, lfc.th = c(log2(2), log2(3)), 
+#'                shrink.method = "normal", outdir = "./my_results", BPPARAM = MulticoreParam(2))
+#' }
 get_DESEQ2_res <- function(dds, res.list, contrasts, user.mat = FALSE, block = NULL, design = NULL, alpha = 0.05, 
 						   lfc.th = c(log2(1.5), log2(2)), shrink.method = "apeglm", outdir = "./de", BPPARAM = NULL) {
   
