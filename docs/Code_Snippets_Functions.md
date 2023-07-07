@@ -1254,7 +1254,7 @@ get_DESEQ2_res <- function(dds, res.list, contrasts, user.mat = FALSE, block = N
     }
     
     message(paste0("Design for ", paste(con[1], con[2], "vs", con[3], sep = "_"),
-                   " is ", as.character(desgn)))
+                   " is ", paste0(as.character(desgn))))
     
     dds <- DESeqDataSet(dds, design = desgn)
     dds <- DESeq(dds, BPPARAM = BPPARAM)
