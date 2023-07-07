@@ -1246,14 +1246,17 @@ get_DESEQ2_res <- function(dds, res.list, contrasts, user.mat = FALSE, block = N
     }
     
     if (!is.null(design)) {
-      design <- design
+      desgn <- design
     } else if (!is.null(block)) {
-      design <- as.formula(paste0("~",paste0(c(block, con[1]), collapse = "+")))
+      desgn <- as.formula(paste0("~",paste0(c(block, con[1]), collapse = "+")))
     } else {
-      design <- as.formula(paste0("~", con[1]))
+      desgn <- as.formula(paste0("~", con[1]))
     }
     
-    dds <- DESeqDataSet(dds, design = design)
+    message(paste0("Design for ", paste(con[1], con[2], "vs", con[3], sep = "_"),
+                   " is ", as.character(desgn)))
+    
+    dds <- DESeqDataSet(dds, design = desgn)
     dds <- DESeq(dds, BPPARAM = BPPARAM)
 
     res1 <- results(dds, contrast = con, alpha = alpha)
