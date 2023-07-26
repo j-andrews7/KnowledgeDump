@@ -806,14 +806,22 @@ run_enrichKEGG <- function(res.list, padj.th = 0.05, lfc.th = 0, outdir = "./enr
                   downregulated = df[[id.col]][df$padj < padj.th & df$log2FoldChange < lfc.th],
                   all_de = df[[id.col]][df$padj < padj.th])
     
-    genes$upregulated <- bitr(genes$upregulated, fromType = id.type, toType = "ENTREZID", 
-                      OrgDb = OrgDb)$ENTREZID
-    
-    genes$downregulated <- bitr(genes$downregulated, fromType = id.type, toType = "ENTREZID", 
-                      OrgDb = OrgDb)$ENTREZID
-    
-    genes$all_de <- bitr(genes$all_de, fromType = id.type, toType = "ENTREZID", 
-                      OrgDb = OrgDb)$ENTREZID
+    tryCatch({
+      genes$upregulated <- bitr(genes$upregulated, fromType = id.type, toType = "ENTREZID", 
+                            OrgDb = OrgDb)$ENTREZID
+  
+      genes$downregulated <- bitr(genes$downregulated, fromType = id.type, toType = "ENTREZID", 
+                            OrgDb = OrgDb)$ENTREZID
+  
+      genes$all_de <- bitr(genes$all_de, fromType = id.type, toType = "ENTREZID", 
+                            OrgDb = OrgDb)$ENTREZID
+    }, 
+    error = function(e) {
+      message("There was an error: ", e)
+      message("Most likely, no gene identifiers for hits could be mapped to entrez IDs.")
+      message("Proceeding to next comparison in results list.")
+      next
+    })
     
     # Remove lowly expressed genes.
     bg <- df[[id.col]][!is.na(df$padj)]
@@ -826,7 +834,7 @@ run_enrichKEGG <- function(res.list, padj.th = 0.05, lfc.th = 0, outdir = "./enr
       # Term similarities via Jaccard Similarity index.
       ego <- pairwise_termsim(ck)
       
-      height = 3 + (0.15 * length(ego@compareClusterResult$Cluster))
+      height = 3 + (0.015 * length(ego@compareClusterResult$Cluster))
       
       pdf(paste0(out, "/KEGG_Enrichments.Top20_perGroup.pdf"), width = 6, height = height)
       p <- dotplot(ego, showCategory = 20, font.size = 9)
@@ -917,14 +925,25 @@ run_enrichPathway <- function(res.list, padj.th = 0.05, lfc.th = 0, outdir = "./
                   downregulated = df[[id.col]][df$padj < padj.th  & df$log2FoldChange < lfc.th],
                   all_de = df[[id.col]][df$padj < padj.th])
     
-    genes$upregulated <- bitr(genes$upregulated, fromType = id.type, toType = "ENTREZID", 
-                      OrgDb = OrgDb)$ENTREZID
+    tryCatch({
+      genes$upregulated <- bitr(genes$upregulated, fromType = id.type, toType = "ENTREZID", 
+                            OrgDb = OrgDb)$ENTREZID
+  
+      genes$downregulated <- bitr(genes$downregulated, fromType = id.type, toType = "ENTREZID", 
+                            OrgDb = OrgDb)$ENTREZID
+  
+      genes$all_de <- bitr(genes$all_de, fromType = id.type, toType = "ENTREZID", 
+                            OrgDb = OrgDb)$ENTREZID
+    }, 
+    error = function(e) {
+      message("There was an error: ", e)
+      message("Most likely, no gene identifiers for hits could be mapped to entrez IDs.")
+      message("Proceeding to next comparison in results list.")
+      next
+    })
     
-    genes$downregulated <- bitr(genes$downregulated, fromType = id.type, toType = "ENTREZID", 
-                      OrgDb = OrgDb)$ENTREZID
-    
-    genes$all_de <- bitr(genes$all_de, fromType = id.type, toType = "ENTREZID", 
-                      OrgDb = OrgDb)$ENTREZID
+    # Remove duplicate IDs.
+    gl <- gl[unique(names(gl))]
     
     # Remove lowly expressed genes.
     bg <- df[[id.col]][!is.na(df$padj)]
@@ -951,23 +970,22 @@ run_enrichPathway <- function(res.list, padj.th = 0.05, lfc.th = 0, outdir = "./
       print(p)
       dev.off()
       
-      pdf(paste0(out, "/Reactome_Enrichments.termsim.Top30_Tree.pdf"), width = 17, height = 12)
-      p <- treeplot(ego, showCategory = 30, fontsize = 4, offset.params = list(bar_tree = rel(1.4), tiplab = rel(1.4), extend = 0.3, hexpand = 0.1), cluster.params = list(method = "ward.D", n = 6, color = NULL, label_words_n = 5, label_format = 30))
-      print(p)
-      dev.off()
+      if (nrow(ego) > 1) {
+        pdf(paste0(out, "/Reactome_Enrichments.termsim.Top30_Tree.pdf"), width = 17, height = 14)
+        p <- treeplot(ego, showCategory = 30, fontsize = 4, offset.params = list(bar_tree = rel(2.5), tiplab = rel(2.5), extend = 0.3, hexpand = 0.1), cluster.params = list(method = "ward.D", n = min(c(6, ceiling(sqrt(nrow(ego))))), color = NULL, label_words_n = 5, label_format = 30))
+        print(p)
+        dev.off()
         
-      pdf(paste0(out, "/Reactome_Enrichments.termsim.Top10_FullNet.pdf"), width = 15, height = 15)
-      p <- cnetplot(ego, showCategory = 10, cex.params = list(category_label = 1.3, gene_label = 0.9, category_node = 1, gene_node = 1), layout = "kk")
-      print(p)
-      dev.off()
-      
-      pdf(paste0(out, "/Reactome_Enrichments.termsim.Top5_FullNet.pdf"), width = 12, height = 12)
-      p <- cnetplot(ego, showCategory = 5, cex.params = list(category_label = 1.3, gene_label = 0.9, category_node = 1, gene_node = 1), layout = "kk")
-      print(p)
-      dev.off()
-      
-      # Remove duplicate IDs.
-      gl <- gl[unique(names(gl))]
+        pdf(paste0(out, "/Reactome_Enrichments.termsim.Top10_FullNet.pdf"), width = 15, height = 15)
+        p <- cnetplot(ego, showCategory = 10, cex.params = list(category_label = 1.3, gene_label = 0.9, category_node = 1, gene_node = 1), layout = "kk")
+        print(p)
+        dev.off()
+        
+        pdf(paste0(out, "/Reactome_Enrichments.termsim.Top5_FullNet.pdf"), width = 12, height = 12)
+        p <- cnetplot(ego, showCategory = 5, cex.params = list(category_label = 1.3, gene_label = 0.9, category_node = 1, gene_node = 1), layout = "kk")
+        print(p)
+        dev.off()
+      }
       
       # Network plot for each pathway with FC values.
       for (x in ego@compareClusterResult$Description) {
@@ -1040,25 +1058,35 @@ run_enrichGO <- function(res.list, padj.th = 0.05, lfc.th = 0, outdir = "./enric
     gl <- geneList$FC
     names(gl) <- geneList$ENTREZID
     gl <- sort(gl, decreasing = TRUE)
+    # Remove duplicate IDs.
+    gl <- gl[unique(names(gl))]
     
     genes <- list(upregulated = df[[id.col]][df$padj < padj.th & df$log2FoldChange > lfc.th],
                   downregulated = df[[id.col]][df$padj < padj.th  & df$log2FoldChange < lfc.th],
                   all_de = df[[id.col]][df$padj < padj.th])
     
-    genes$upregulated <- bitr(genes$upregulated, fromType = id.type, toType = "ENTREZID", 
-                      OrgDb = OrgDb)$ENTREZID
-    
-    genes$downregulated <- bitr(genes$downregulated, fromType = id.type, toType = "ENTREZID", 
-                      OrgDb = OrgDb)$ENTREZID
-    
-    genes$all_de <- bitr(genes$all_de, fromType = id.type, toType = "ENTREZID", 
-                      OrgDb = OrgDb)$ENTREZID
+    tryCatch({
+      genes$upregulated <- bitr(genes$upregulated, fromType = id.type, toType = "ENTREZID", 
+                            OrgDb = OrgDb)$ENTREZID
+  
+      genes$downregulated <- bitr(genes$downregulated, fromType = id.type, toType = "ENTREZID", 
+                            OrgDb = OrgDb)$ENTREZID
+  
+      genes$all_de <- bitr(genes$all_de, fromType = id.type, toType = "ENTREZID", 
+                            OrgDb = OrgDb)$ENTREZID
+    }, 
+    error = function(e) {
+      message("There was an error: ", e)
+      message("Most likely, no gene identifiers for hits could be mapped to entrez IDs.")
+      message("Proceeding to next comparison in results list.")
+      next
+    })
     
     # Remove lowly expressed genes.
     bg <- df[[id.col]][!is.na(df$padj)]
     bg <- bitr(bg, fromType = id.type, toType = "ENTREZID", OrgDb = OrgDb)$ENTREZID
     
-    for (ont %in% onts) {
+    for (ont in onts) {
     
       ck <- compareCluster(geneCluster = genes, fun = enrichGO, universe = bg, 
                            readable = TRUE, ont = ont, OrgDb = OrgDb, ...)
@@ -1083,20 +1111,23 @@ run_enrichGO <- function(res.list, padj.th = 0.05, lfc.th = 0, outdir = "./enric
         print(p)
         dev.off()
         
-        pdf(paste0(out, "/GO_Enrichments.termsim.Top30_Tree.", ont, ".pdf"), width = 17, height = 12)
-        p <- treeplot(ego, showCategory = 30, fontsize = 4, offset.params = list(bar_tree = rel(1.4), tiplab = rel(1.4), extend = 0.3, hexpand = 0.1), cluster.params = list(method = "ward.D", n = 6, color = NULL, label_words_n = 5, label_format = 30))
-        print(p)
-        dev.off()
         
-        pdf(paste0(out, "/GO_Enrichments.termsim.Top10_FullNet.", ont, ".pdf"), width = 15, height = 15)
-        p <- cnetplot(ego, showCategory = 10, cex.params = list(category_label = 1.3, gene_label = 0.9, category_node = 1, gene_node = 1), layout = "kk")
-        print(p)
-        dev.off()
-        
-        pdf(paste0(out, "/GO_Enrichments.termsim.Top5_FullNet.", ont, ".pdf"), width = 13, height = 13)
-        p <- cnetplot(ego, showCategory = 5, cex.params = list(category_label = 1.3, gene_label = 0.9, category_node = 1, gene_node = 1), layout = "kk")
-        print(p)
-        dev.off()
+        if (nrow(ego) > 1) {
+          pdf(paste0(out, "/GO_Enrichments.termsim.Top30_Tree.", ont, ".pdf"), width = 17, height = 14)
+          p <- treeplot(ego, showCategory = 30, fontsize = 4, offset.params = list(bar_tree = rel(2.5), tiplab = rel(2.5), extend = 0.3, hexpand = 0.1), cluster.params = list(method = "ward.D", n = min(c(6, ceiling(sqrt(nrow(ego))))), color = NULL, label_words_n = 5, label_format = 30))
+          print(p)
+          dev.off()
+          
+          pdf(paste0(out, "/GO_Enrichments.termsim.Top10_FullNet.", ont, ".pdf"), width = 15, height = 15)
+          p <- cnetplot(ego, showCategory = 10, cex.params = list(category_label = 1.3, gene_label = 0.9, category_node = 1, gene_node = 1), layout = "kk")
+          print(p)
+          dev.off()
+          
+          pdf(paste0(out, "/GO_Enrichments.termsim.Top5_FullNet.", ont, ".pdf"), width = 13, height = 13)
+          p <- cnetplot(ego, showCategory = 5, cex.params = list(category_label = 1.3, gene_label = 0.9, category_node = 1, gene_node = 1), layout = "kk")
+          print(p)
+          dev.off()
+        }
         
         saveRDS(ego, file = paste0(out, "/enrichGO.", ont, ".RDS"))
         ego <- as.data.frame(ego)
