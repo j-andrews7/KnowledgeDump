@@ -1516,3 +1516,12 @@ for f in *.bam; do
 
 done
 ```
+
+### Extract Random Reads from FASTQ
+
+For checking or whatnot. Change `samplerate` to extract a given percentage of reads, set to 0.1% here. `#` is used by bbmap to fill in 1 & 2, so this is for a paired end sample and will return two output files. Can also use `in1`, `in2`, `out1`, and `out2` if you'd prefer.
+
+```bash
+module load bbmap
+reformat.sh in=thefastq_R#_001.fastq.gz out=thefastq_R#_001.subsampled.fastq.gz samplerate=0.001
+```
