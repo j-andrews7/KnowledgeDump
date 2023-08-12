@@ -1035,14 +1035,15 @@ run_enrichPathway(res)
 #'   Options must be one or more of "ALL", "BP", "CC", or "MF". 
 #'   Default uses all of those options. 
 #' @param ... Passed to \code{compareCluster}
-run_enrichGO <- function(res.list, padj.th = 0.05, lfc.th = 0, outdir = "./enrichments",
+#' @author Jared Andrews
+run_enrichGO <- function(res.list, padj.th = 0.05, lfc.th = 0, outdir = "./enrichments/GO_enrichments",
                          OrgDb = "org.Hs.eg.db", id.col = "ENSEMBL", id.type = "ENSEMBL", 
                          onts = c("BP", "MF", "CC", "ALL"), ...) {
   # Do GO enrichment on up/downregulated genes.
   for (r in names(res.list)) {
     df <- res[[r]]
     out <- file.path(outdir, r)
-    dir.create(paste0(out, "/GO_enrichments"), showWarnings = FALSE, recursive = TRUE)
+    dir.create(out, showWarnings = FALSE, recursive = TRUE)
     
     # Strip gene version info if ensembl.
     if (id.type == "ENSEMBL") {
@@ -1096,7 +1097,7 @@ run_enrichGO <- function(res.list, padj.th = 0.05, lfc.th = 0, outdir = "./enric
         ego <- pairwise_termsim(ck)
         
         # Adjust plot height based on number of terms.
-        height = 2.5 + (0.015 * length(ego@compareClusterResult$Cluster))
+        height = 2.75 + (0.025 * length(ego@compareClusterResult$Cluster))
         
         pdf(paste0(out, "/GO_Enrichments.Top20_perGroup.", ont, ".pdf"), width = 6, height = height)
         p <- dotplot(ego, showCategory = 20, font.size = 9)
