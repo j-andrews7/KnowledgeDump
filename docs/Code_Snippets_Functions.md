@@ -897,10 +897,11 @@ run_enrichKEGG(res, OrgDb = "org.Mm.eg.db", organism = "mmu")
 #' @param OrgDb Character scalar for annotation database to use.
 #' @param id.col Character scalar indicating name of gene ID column for each data.frame in \code{res.list}
 #' @param id.type Character scalar indicating type of gene ID used. See \code{keytypes(org.Hs.eg.db)} for all options.
+#' @param organism Character scalar indicating ReactomePA-supported species ("human", "mouse").
 #' @param ... Passed to \code{compareCluster}.
 #' @author Jared Andrews
 run_enrichPathway <- function(res.list, padj.th = 0.05, lfc.th = 0, outdir = "./enrichments",
-                         OrgDb = "org.Hs.eg.db", id.col = "ENSEMBL", id.type = "ENSEMBL", ...) {
+                         OrgDb = "org.Hs.eg.db", id.col = "ENSEMBL", id.type = "ENSEMBL", organism = "human", ...) {
   # Do GO enrichment on up/downregulated genes.
   for (r in names(res.list)) {
     df <- res[[r]]
@@ -950,7 +951,8 @@ run_enrichPathway <- function(res.list, padj.th = 0.05, lfc.th = 0, outdir = "./
     bg <- df[[id.col]][!is.na(df$padj)]
     bg <- bitr(bg, fromType = id.type, toType = "ENTREZID", OrgDb = OrgDb)$ENTREZID
     
-    ck <- compareCluster(geneCluster = genes, fun = enrichPathway, universe = bg, readable = TRUE, ...)
+    ck <- compareCluster(geneCluster = genes, fun = enrichPathway, universe = bg, 
+                         readable = TRUE, organism = organism, ...)
     if (!is.null(ck)) {
       # Term similarities via Jaccard Similarity index.
       ego <- pairwise_termsim(ck)
@@ -997,7 +999,7 @@ run_enrichPathway <- function(res.list, padj.th = 0.05, lfc.th = 0, outdir = "./
         tryCatch(
           {
             pdf(paste0(out, "/Reactome_pathways/", x_out, ".pdf"), width = 11, height = 11)
-            p <- viewPathway(x, readable = TRUE, foldChange = gl)
+            p <- viewPathway(x, readable = TRUE, foldChange = gl, organism = organism)
             vals <- p$data$color[!is.na(p$data$color)]
             l <- max(abs(as.numeric(vals)))
             p <- p + scale_color_gradient2(limits = c(-l,l), mid = "grey90", 
