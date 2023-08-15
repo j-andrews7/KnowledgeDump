@@ -764,9 +764,12 @@ These are kind of a pain to run for multiple comparisons, etc, so these function
 #### KEGG Enrichment
 
 ```r
+library("org.Mm.eg.db")
 library("org.Hs.eg.db")
 library("clusterProfiler")
 library("enrichplot")
+library("ggplot2")
+library("stringi")
 library("pathview")
 library("ReactomePA")
 
@@ -777,9 +780,12 @@ library("ReactomePA")
 #' @param OrgDb Character scalar for annotation database to use.
 #' @param id.col Character scalar indicating name of gene ID column for each data.frame in \code{res.list}
 #' @param id.type Character scalar indicating type of gene ID used. See \code{keytypes(org.Hs.eg.db)} for all options.
+#' @param organism Character scalar indicating species in KEGG format ("hsa", "mmu", etc).
 #' @param ... Passed to \code{compareCluster}.
+#' @author Jared Andrews
 run_enrichKEGG <- function(res.list, padj.th = 0.05, lfc.th = 0, outdir = "./enrichments",
-                         OrgDb = "org.Hs.eg.db", id.col = "ENSEMBL", id.type = "ENSEMBL", ...) {
+                         OrgDb = "org.Hs.eg.db", id.col = "ENSEMBL", id.type = "ENSEMBL", 
+                         organism = "hsa", ...) {
   # Do GO enrichment on up/downregulated genes.
   for (r in names(res.list)) {
     df <- res[[r]]
@@ -827,19 +833,19 @@ run_enrichKEGG <- function(res.list, padj.th = 0.05, lfc.th = 0, outdir = "./enr
     bg <- df[[id.col]][!is.na(df$padj)]
     bg <- bitr(bg, fromType = id.type, toType = "ENTREZID", OrgDb = OrgDb)$ENTREZID
     
-    ck <- compareCluster(geneCluster = genes, fun = enrichKEGG, keyType = "kegg", universe = bg, ...)
+    ck <- compareCluster(geneCluster = genes, fun = enrichKEGG, keyType = "kegg", universe = bg, organism = organism, ...)
     if (!is.null(ck)) {
       ck <- setReadable(ck, OrgDb = OrgDb, keyType="ENTREZID")
       
       # Term similarities via Jaccard Similarity index.
       ego <- pairwise_termsim(ck)
       
-      height = 3 + (0.015 * length(ego@compareClusterResult$Cluster))
+      height = 4 + (0.015 * length(ego@compareClusterResult$Cluster))
       
       pdf(paste0(out, "/KEGG_Enrichments.Top20_perGroup.pdf"), width = 6, height = height)
-      p <- dotplot(ego, showCategory = 20, font.size = 9)
+      p <- dotplot(ego, showCategory = 20, font.size = 7)
       print(p)
-      p <- dotplot(ego, size = "count", showCategory = 20, font.size = 9)
+      p <- dotplot(ego, size = "count", showCategory = 20, font.size = 7)
       print(p)
       dev.off()
       
@@ -855,7 +861,7 @@ run_enrichKEGG <- function(res.list, padj.th = 0.05, lfc.th = 0, outdir = "./enr
           pathview(gene.data  = gl,
                    pathway.id = x,
                    kegg.dir = paste0(out, "/KEGG_pathview/"),
-                   species    = "hsa",
+                   species    = organism,
                    out.suffix = pname,
                    limit      = list(gene=3, cpd=1),
                    kegg.native = TRUE),
@@ -878,18 +884,12 @@ run_enrichKEGG <- function(res.list, padj.th = 0.05, lfc.th = 0, outdir = "./enr
   }
 }
 
-run_enrichKEGG(res)
+run_enrichKEGG(res, OrgDb = "org.Mm.eg.db", organism = "mmu")
 ```
 
 #### Reactome
 
 ```r
-library("org.Hs.eg.db")
-library("clusterProfiler")
-library("enrichplot")
-library("pathview")
-library("ReactomePA")
-
 #' @param res.list Named list of DESeq2 results data.frames.
 #' @param padj.th Numeric scalar to use as significance threshold for DE genes.
 #' @param lfc.th Numeric scalar to use as log fold change threshold for DE genes.
@@ -898,6 +898,7 @@ library("ReactomePA")
 #' @param id.col Character scalar indicating name of gene ID column for each data.frame in \code{res.list}
 #' @param id.type Character scalar indicating type of gene ID used. See \code{keytypes(org.Hs.eg.db)} for all options.
 #' @param ... Passed to \code{compareCluster}.
+#' @author Jared Andrews
 run_enrichPathway <- function(res.list, padj.th = 0.05, lfc.th = 0, outdir = "./enrichments",
                          OrgDb = "org.Hs.eg.db", id.col = "ENSEMBL", id.type = "ENSEMBL", ...) {
   # Do GO enrichment on up/downregulated genes.
@@ -955,12 +956,12 @@ run_enrichPathway <- function(res.list, padj.th = 0.05, lfc.th = 0, outdir = "./
       ego <- pairwise_termsim(ck)
       
       # Adjust plot height based on number of terms.
-      height = 3.5 + (0.015 * length(ego@compareClusterResult$Cluster))
+      height = 4 + (0.015 * length(ego@compareClusterResult$Cluster))
       
       pdf(paste0(out, "/Reactome_Enrichments.Top20_perGroup.pdf"), width = 6, height = height)
-      p <- dotplot(ego, showCategory = 20, font.size = 8)
+      p <- dotplot(ego, showCategory = 20, font.size = 7)
       print(p)
-      p <- dotplot(ego, size = "count", showCategory = 20, font.size = 8)
+      p <- dotplot(ego, size = "count", showCategory = 20, font.size = 7)
       print(p)
       dev.off()
       
@@ -1005,6 +1006,9 @@ run_enrichPathway <- function(res.list, padj.th = 0.05, lfc.th = 0, outdir = "./
             dev.off()
             dev.off()
             dev.off()
+            dev.off()
+            dev.off()
+            dev.off()
           },
           error = function(e) {"bah"}
         )
@@ -1018,7 +1022,7 @@ run_enrichPathway <- function(res.list, padj.th = 0.05, lfc.th = 0, outdir = "./
   }
 }
 
-run_enrichPathway(res)
+run_enrichPathway(res, OrgDb = "org.Mm.eg.db", organism = "mouse")
 ```
 
 #### GO Enrichment
@@ -1036,14 +1040,14 @@ run_enrichPathway(res)
 #'   Default uses all of those options. 
 #' @param ... Passed to \code{compareCluster}
 #' @author Jared Andrews
-run_enrichGO <- function(res.list, padj.th = 0.05, lfc.th = 0, outdir = "./enrichments/GO_enrichments",
+run_enrichGO <- function(res.list, padj.th = 0.05, lfc.th = 0, outdir = "./enrichments",
                          OrgDb = "org.Hs.eg.db", id.col = "ENSEMBL", id.type = "ENSEMBL", 
                          onts = c("BP", "MF", "CC", "ALL"), ...) {
   # Do GO enrichment on up/downregulated genes.
   for (r in names(res.list)) {
     df <- res[[r]]
     out <- file.path(outdir, r)
-    dir.create(out, showWarnings = FALSE, recursive = TRUE)
+    dir.create(paste0(out, "/GO_enrichments"), showWarnings = FALSE, recursive = TRUE)
     
     # Strip gene version info if ensembl.
     if (id.type == "ENSEMBL") {
@@ -1097,12 +1101,12 @@ run_enrichGO <- function(res.list, padj.th = 0.05, lfc.th = 0, outdir = "./enric
         ego <- pairwise_termsim(ck)
         
         # Adjust plot height based on number of terms.
-        height = 2.75 + (0.025 * length(ego@compareClusterResult$Cluster))
+        height = 3.75 + (0.025 * length(ego@compareClusterResult$Cluster))
         
         pdf(paste0(out, "/GO_Enrichments.Top20_perGroup.", ont, ".pdf"), width = 6, height = height)
-        p <- dotplot(ego, showCategory = 20, font.size = 9)
+        p <- dotplot(ego, showCategory = 20, font.size = 7)
         print(p)
-        p <- dotplot(ego, size = "count", showCategory = 20, font.size = 9)
+        p <- dotplot(ego, size = "count", showCategory = 20, font.size = 7)
         print(p)
         dev.off()
         
@@ -1139,7 +1143,7 @@ run_enrichGO <- function(res.list, padj.th = 0.05, lfc.th = 0, outdir = "./enric
   }
 }
 
-run_enrichGO(res)
+run_enrichGO(res, OrgDb = "org.Mm.eg.db")
 ```
 
 
