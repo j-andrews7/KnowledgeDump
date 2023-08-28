@@ -780,7 +780,7 @@ library("ReactomePA")
 #' @param OrgDb Character scalar for annotation database to use.
 #' @param id.col Character scalar indicating name of gene ID column for each data.frame in \code{res.list}
 #' @param id.type Character scalar indicating type of gene ID used. See \code{keytypes(org.Hs.eg.db)} for all options.
-#' @param organism Character scalar indicating species in KEGG format ("hsa", "mmu", etc).
+#' @param species Character scalar indicating species in KEGG format ("hsa", "mmu", etc).
 #' @param ... Passed to \code{compareCluster}.
 #' @author Jared Andrews
 run_enrichKEGG <- function(res.list, padj.th = 0.05, lfc.th = 0, outdir = "./enrichments",
@@ -789,6 +789,11 @@ run_enrichKEGG <- function(res.list, padj.th = 0.05, lfc.th = 0, outdir = "./enr
   # Do GO enrichment on up/downregulated genes.
   for (r in names(res.list)) {
     df <- res[[r]]
+
+	if (lfc.th != 0) {
+      r <- paste0(r,"-LFC", lfc.th, "filt")
+    }
+
     out <- file.path(outdir, r)
     dir.create(paste0(out, "/KEGG_pathview"), showWarnings = FALSE, recursive = TRUE)
     
@@ -809,7 +814,7 @@ run_enrichKEGG <- function(res.list, padj.th = 0.05, lfc.th = 0, outdir = "./enr
     
     # Get gene categories.
     genes <- list(upregulated = df[[id.col]][df$padj < padj.th & df$log2FoldChange > lfc.th],
-                  downregulated = df[[id.col]][df$padj < padj.th & df$log2FoldChange < lfc.th],
+                  downregulated = df[[id.col]][df$padj < padj.th & df$log2FoldChange < -lfc.th],
                   all_de = df[[id.col]][df$padj < padj.th])
     
     tryCatch({
@@ -905,6 +910,11 @@ run_enrichPathway <- function(res.list, padj.th = 0.05, lfc.th = 0, outdir = "./
   # Do GO enrichment on up/downregulated genes.
   for (r in names(res.list)) {
     df <- res[[r]]
+
+	if (lfc.th != 0) {
+      r <- paste0(r,"-LFC", lfc.th, "filt")
+    }
+
     out <- file.path(outdir, r)
     dir.create(paste0(out, "/Reactome_pathways"), showWarnings = FALSE, recursive = TRUE)
     
@@ -924,7 +934,7 @@ run_enrichPathway <- function(res.list, padj.th = 0.05, lfc.th = 0, outdir = "./
     gl = sort(gl, decreasing = TRUE)
     
     genes <- list(upregulated = df[[id.col]][df$padj < padj.th & df$log2FoldChange > lfc.th],
-                  downregulated = df[[id.col]][df$padj < padj.th  & df$log2FoldChange < lfc.th],
+                  downregulated = df[[id.col]][df$padj < padj.th  & df$log2FoldChange < -lfc.th],
                   all_de = df[[id.col]][df$padj < padj.th])
     
     tryCatch({
@@ -991,30 +1001,30 @@ run_enrichPathway <- function(res.list, padj.th = 0.05, lfc.th = 0, outdir = "./
       }
       
       # Network plot for each pathway with FC values.
-      for (x in ego@compareClusterResult$Description) {
-        # Some pathways have backslashes, which will break file creation.
-        x_out <- str_replace_all(x, "/", "_")
-        
-        # For when it inevitably wants to crash due to not finding a pathway name or such.
-        tryCatch(
-          {
-            pdf(paste0(out, "/Reactome_pathways/", x_out, ".pdf"), width = 11, height = 11)
-            p <- viewPathway(x, readable = TRUE, foldChange = gl, organism = organism)
-            vals <- p$data$color[!is.na(p$data$color)]
-            l <- max(abs(as.numeric(vals)))
-            p <- p + scale_color_gradient2(limits = c(-l,l), mid = "grey90", 
-                                           high = "red", low = "navyblue")
-            print(p)
-            dev.off()
-            dev.off()
-            dev.off()
-            dev.off()
-            dev.off()
-            dev.off()
-          },
-          error = function(e) {"bah"}
-        )
-      }
+      # for (x in ego@compareClusterResult$Description) {
+      #   # Some pathways have backslashes, which will break file creation.
+      #   x_out <- str_replace_all(x, "/", "_")
+      #   
+      #   # For when it inevitably wants to crash due to not finding a pathway name or such.
+      #   tryCatch(
+      #     {
+      #       pdf(paste0(out, "/Reactome_pathways/", x_out, ".pdf"), width = 11, height = 11)
+      #       p <- viewPathway(x, readable = TRUE, foldChange = gl, organism = organism)
+      #       vals <- p$data$color[!is.na(p$data$color)]
+      #       l <- max(abs(as.numeric(vals)))
+      #       p <- p + scale_color_gradient2(limits = c(-l,l), mid = "grey90", 
+      #                                      high = "red", low = "navyblue")
+      #       print(p)
+      #       dev.off()
+      #       dev.off()
+      #       dev.off()
+      #       dev.off()
+      #       dev.off()
+      #       dev.off()
+      #     },
+      #     error = function(e) {"bah"}
+      #   )
+      # }
       
       saveRDS(ego, file = paste0(out, "/enrichPathway.reactome.RDS"))
       ego <- as.data.frame(ego)
@@ -1048,6 +1058,11 @@ run_enrichGO <- function(res.list, padj.th = 0.05, lfc.th = 0, outdir = "./enric
   # Do GO enrichment on up/downregulated genes.
   for (r in names(res.list)) {
     df <- res[[r]]
+
+	if (lfc.th != 0) {
+      r <- paste0(r,"-LFC", lfc.th, "filt")
+    }
+
     out <- file.path(outdir, r)
     dir.create(paste0(out, "/GO_enrichments"), showWarnings = FALSE, recursive = TRUE)
     
@@ -1069,7 +1084,7 @@ run_enrichGO <- function(res.list, padj.th = 0.05, lfc.th = 0, outdir = "./enric
     gl <- gl[unique(names(gl))]
     
     genes <- list(upregulated = df[[id.col]][df$padj < padj.th & df$log2FoldChange > lfc.th],
-                  downregulated = df[[id.col]][df$padj < padj.th  & df$log2FoldChange < lfc.th],
+                  downregulated = df[[id.col]][df$padj < padj.th  & df$log2FoldChange < -lfc.th],
                   all_de = df[[id.col]][df$padj < padj.th])
     
     tryCatch({
@@ -1119,7 +1134,7 @@ run_enrichGO <- function(res.list, padj.th = 0.05, lfc.th = 0, outdir = "./enric
         dev.off()
         
         
-        if (nrow(ego) > 1) {
+        if (nrow(ego) > 2) {
           pdf(paste0(out, "/GO_Enrichments.termsim.Top30_Tree.", ont, ".pdf"), width = 17, height = 14)
           p <- treeplot(ego, showCategory = 30, fontsize = 4, offset.params = list(bar_tree = rel(2.5), tiplab = rel(2.5), extend = 0.3, hexpand = 0.1), cluster.params = list(method = "ward.D", n = min(c(6, ceiling(sqrt(nrow(ego))))), color = NULL, label_words_n = 5, label_format = 30))
           print(p)
