@@ -1163,6 +1163,204 @@ run_enrichGO <- function(res.list, padj.th = 0.05, lfc.th = 0, outdir = "./enric
 run_enrichGO(res, OrgDb = "org.Mm.eg.db")
 ```
 
+#### KEGG Enrichment (simple)
+
+This version just uses lists of genes that can be defined however which way.
+
+```r
+library("org.Mm.eg.db")
+library("org.Hs.eg.db")
+library("clusterProfiler")
+library("enrichplot")
+library("ggplot2")
+library("stringi")
+library("pathview")
+library("ReactomePA")
+
+#' @param genes Character vector of gene IDs to test for enrichment.
+#' @param bg Character vector of gene IDs to be used as background.
+#' @param name Character scalar for output name.
+#' @param outdir Character scalar for output directory.
+#' @param OrgDb Character scalar for annotation database to use.
+#' @param id.type Character scalar indicating type of gene ID used. See \code{keytypes(org.Hs.eg.db)} for all options.
+#' @param kegg.organism Character scalar indicating species in KEGG format ("hsa", "mmu", etc).
+#' @param reactome.organism Character scalar indicating species in Reactome format ("human", "mouse", etc).
+#' @param fun Character scalar indicating which "enrich" function to run ("enrichKEGG", "enrichPathway").
+#' @param ... Passed to specified enrichments function.
+#' @author Jared Andrews
+run_enrich_simple <- function(genes, bg, name = "sample", outdir = "./enrichments",
+                         OrgDb = "org.Hs.eg.db", id.type = "ENSEMBL", 
+                         kegg.organism = "hsa", reactome.organism = "human", fun = "enrichKEGG", ...) {
+
+  out <- file.path(outdir, name)
+  dir.create(out, recursive = TRUE, showWarnings = FALSE)
+  
+  # Strip gene version info if ensembl.
+  if (id.type == "ENSEMBL") {
+    xx <- strsplit(genes, "\\.")
+    genes <- unlist(lapply(xx, FUN = function(x) x[1]))
+    
+    xx <- strsplit(bg, "\\.")
+    bg <- unlist(lapply(xx, FUN = function(x) x[1]))
+  }
+  
+  tryCatch({
+    genes <- bitr(genes, fromType = id.type, toType = "ENTREZID", 
+                          OrgDb = OrgDb)$ENTREZID
+
+  }, 
+  error = function(e) {
+    message("There was an error: ", e)
+    message("Most likely, no gene identifiers for hits could be mapped to entrez IDs.")
+    next
+  })
+  
+  bg <- bitr(bg, fromType = id.type, toType = "ENTREZID", OrgDb = OrgDb)$ENTREZID
+  
+  if (fun == "enrichKEGG") {
+    ego <- enrichKEGG(gene = genes, universe = bg, organism = kegg.organism, ...)
+  } else if (fun == "enrichPathway") {
+    ego <- enrichPathway(gene = genes, universe = bg, organism = reactome.organism, ...)
+  } 
+
+  if (nrow(as.data.frame(ego)) > 0) {
+    # Term similarities via Jaccard Similarity index.
+    ego <- pairwise_termsim(ego)
+    ego <- setReadable(ego, OrgDb = OrgDb, keyType="ENTREZID")
+    pdf(paste0(out, "/", fun, ".Top30.pdf"), width = 6, height = 8)
+    p <- dotplot(ego, showCategory = 30, font.size = 7)
+    print(p)
+    p <- barplot(ego, showCategory = 30, font.size = 7)
+    print(p)
+    dev.off()
+    
+    if (nrow(as.data.frame(ego)) > 2) {
+      pdf(paste0(out, "/", fun, ".termsim.Top30_Tree.pdf"), width = 17, height = 14)
+      p <- treeplot(ego, showCategory = 30, fontsize = 4, offset.params = list(bar_tree = rel(2.5), tiplab = rel(2.5), extend = 0.3, hexpand = 0.1), cluster.params = list(method = "ward.D", n = min(c(6, ceiling(sqrt(nrow(ego))))), color = NULL, label_words_n = 5, label_format = 30))
+      print(p)
+      dev.off()
+      
+      pdf(paste0(out, "/", fun, ".termsim.Top10_FullNet.pdf"), width = 15, height = 15)
+      p <- cnetplot(ego, showCategory = 10, cex.params = list(category_label = 1.3, gene_label = 0.9, category_node = 1, gene_node = 1), layout = "kk")
+      print(p)
+      dev.off()
+      
+      pdf(paste0(out, "/", fun, ".termsim.Top5_FullNet.pdf"), width = 12, height = 12)
+      p <- cnetplot(ego, showCategory = 5, cex.params = list(category_label = 1.3, gene_label = 0.9, category_node = 1, gene_node = 1), layout = "kk")
+      print(p)
+      dev.off()
+    }
+    
+    saveRDS(ego, file = paste0(out, "/", fun, ".results.RDS"))
+    ego <- as.data.frame(ego)
+    write.table(ego, file = paste0(out, "/", fun, ".results.txt"), sep = "\t", row.names = FALSE, quote = FALSE)
+  }
+}
+```
+
+#### GO Enrichment (simple)
+
+This version just uses lists of genes that can be defined however which way.
+
+```r
+#' @param genes Character vector of gene IDs to test for enrichment.
+#' @param bg Character vector of gene IDs to be used as background.
+#' @param name Character scalar for output name.
+#' @param outdir Character scalar for output directory.
+#' @param OrgDb Character scalar for annotation database to use.
+#' @param id.type Character scalar indicating type of gene ID used. See \code{keytypes(org.Hs.eg.db)} for all options.
+#' @param onts Character vector indicating ontologies to test individually. 
+#'   Options must be one or more of "ALL", "BP", "CC", or "MF". 
+#'   Default uses all of those options. 
+#' @param ... Passed to specified enrichments function.
+#' @author Jared Andrews
+run_enrichGO_simple <- function(genes, bg, name = "sample", outdir = "./enrichments",
+                         OrgDb = "org.Hs.eg.db", id.type = "ENSEMBL", onts = c("BP", "MF", "CC", "ALL"), ...) {
+
+  out <- file.path(outdir, name)
+  dir.create(out, recursive = TRUE, showWarnings = FALSE)
+  
+  # Strip gene version info if ensembl.
+  if (id.type == "ENSEMBL") {
+    xx <- strsplit(genes, "\\.")
+    genes <- unlist(lapply(xx, FUN = function(x) x[1]))
+    
+    xx <- strsplit(bg, "\\.")
+    bg <- unlist(lapply(xx, FUN = function(x) x[1]))
+  }
+  tryCatch({
+    genes <- bitr(genes, fromType = id.type, toType = "ENTREZID", 
+                          OrgDb = OrgDb)$ENTREZID
+
+  }, 
+  error = function(e) {
+    message("There was an error: ", e)
+    message("Most likely, no gene identifiers for hits could be mapped to entrez IDs.")
+    next
+  })
+  
+  bg <- bitr(bg, fromType = id.type, toType = "ENTREZID", OrgDb = OrgDb)$ENTREZID
+
+  for (ont in onts) {
+    ego <- enrichGO(genes, OrgDb = OrgDb, universe = bg, ont = ont, readable = TRUE, ...)
+
+    if (nrow(as.data.frame(ego)) > 0) {
+      # Term similarities via Jaccard Similarity index.
+      ego <- pairwise_termsim(ego)
+      pdf(paste0(out, "/enrichGO.", ont, ".Top30.pdf"), width = 6, height = 8)
+      p <- dotplot(ego, showCategory = 30, font.size = 7)
+      print(p)
+      p <- barplot(ego, showCategory = 30, font.size = 7)
+      print(p)
+      dev.off()
+      
+      if (nrow(as.data.frame(ego)) > 2) {
+        pdf(paste0(out, "/enrichGO.", ont, ".termsim.Top30_Tree.pdf"), width = 17, height = 14)
+        p <- treeplot(ego, showCategory = 30, fontsize = 4, offset.params = list(bar_tree = rel(2.5), tiplab = rel(2.5), extend = 0.3, hexpand = 0.1), cluster.params = list(method = "ward.D", n = min(c(6, ceiling(sqrt(nrow(ego))))), color = NULL, label_words_n = 5, label_format = 30))
+        print(p)
+        dev.off()
+        
+        pdf(paste0(out, "/enrichGO.", ont, ".termsim.Top10_FullNet.pdf"), width = 15, height = 15)
+        p <- cnetplot(ego, showCategory = 10, cex.params = list(category_label = 1.3, gene_label = 0.9, category_node = 1, gene_node = 1), layout = "kk")
+        print(p)
+        dev.off()
+        
+        pdf(paste0(out, "/enrichGO.", ont, ".termsim.Top5_FullNet.pdf"), width = 12, height = 12)
+        p <- cnetplot(ego, showCategory = 5, cex.params = list(category_label = 1.3, gene_label = 0.9, category_node = 1, gene_node = 1), layout = "kk")
+        print(p)
+        dev.off()
+      }
+      
+      saveRDS(ego, file = paste0(out, "/enrichGO.", ont, ".results.RDS"))
+      ego <- as.data.frame(ego)
+      write.table(ego, file = paste0(out, "/enrichGO.", ont, ".results.txt"), sep = "\t", row.names = FALSE, quote = FALSE)
+    }
+  }
+}
+
+rezzies <- c("K_0.v.W_0-b_cul", "K_1.v.W_1-b_cul", "K_2.v.W_2-b_cul", "K_5.v.W_5-b_cul", "K_7.v.W_7-b_cul")
+bgs <- list(bg0 = res$`K_0.v.W_0-b_cul`$SYMBOL[!is.na(res$`K_0.v.W_0-b_cul`$padj)],
+  bg1 = res$`K_1.v.W_1-b_cul`$SYMBOL[!is.na(res$`K_1.v.W_1-b_cul`$padj)],
+  bg2 = res$`K_2.v.W_2-b_cul`$SYMBOL[!is.na(res$`K_2.v.W_2-b_cul`$padj)],
+  bg5 = res$`K_5.v.W_5-b_cul`$SYMBOL[!is.na(res$`K_5.v.W_5-b_cul`$padj)],
+  bg7 = res$`K_7.v.W_7-b_cul`$SYMBOL[!is.na(res$`K_7.v.W_7-b_cul`$padj)])
+
+for (i in seq_along(df_lists)) {
+  n <- names(df_lists)[i]
+  bg <- ifelse(grepl("0d", n), "bg0", 
+               ifelse(grepl("1d", n), "bg1",
+               ifelse(grepl("2d", n), "bg2",
+               ifelse(grepl("5d", n), "bg5",
+               ifelse(grepl("7d", n), "bg7")))))
+  g <- df_lists[[i]]
+  
+  run_enrich_simple(g, bg = bgs[[bg]], OrgDb = "org.Mm.eg.db", kegg.organism = "mmu", reactome.organism = "mouse", id.type = "SYMBOL", outdir = "./eed_comparison/enrichments", name = n, fun = "enrichKEGG")
+  
+  run_enrich_simple(g, bg = bgs[[bg]], OrgDb = "org.Mm.eg.db", kegg.organism = "mmu", reactome.organism = "mouse", id.type = "SYMBOL", outdir = "./eed_comparison/enrichments", name = n, fun = "enrichPathway")
+  
+  run_enrichGO_simple(g, bg = bgs[[bg]], OrgDb = "org.Mm.eg.db", id.type = "SYMBOL", outdir = "./eed_comparison/enrichments", name = n)
+}
+```
 
 ### CNV Calling from Methylation Array
 This spits out typical genome-wide CNV plots, segmentation files, bins, and IGV tracks from Illumina methylation arrays. Users can add details regions for labels if they'd like. When mixing both 450k and EPIC arrays, set `array_type = "overlap"`.
