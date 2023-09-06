@@ -209,6 +209,32 @@ fig <- plot3Ddim(new.sce, "UMAP_m.dist0.3_n.neigh10",
 saveWidget(jqui_resizable(fig), "./QC/UMAP.3D.m.dist0.3_n.neigh10.Group.html")
 ```
 
+#### Gene Expression Over Time (or Between Groups)
+
+Useful for time-series RNA-seq and such.
+
+```r
+library(dittoSeq)
+library(ggplot2)
+
+# Single gene. Add "method = 'lm'" to 'geom_smooth' for straight-line trend.
+dittoPlot(dds, "Clu", group.by = "Broad_Group", color.by = "H3_Status", split.by = "Location", 
+		  assay = "lognorm", swap.rownames = "SYMBOL", adjustment = NULL, 
+		  plots = c("boxplot", "jitter"), boxplot.width = 0.6, boxplot.lineweight = 0.5, 
+		  ylab = "log2(normalized counts + 1)") + 
+		  geom_smooth(aes(group = color, color = color), se = FALSE, linewidth = 1.5) + 
+		  scale_color_manual(values = Darken(dittoColors()[1:2]))
+
+# Group of genes.
+dittoPlotVarsAcrossGroups(dds, c("Cdk2", "Jun", "Fos", "Fcmr"), group.by = "Broad_Group", 
+						  color.by = "H3_Status", split.by = "Location", assay = "lognorm", 
+						  swap.rownames = "SYMBOL", adjustment = NULL, plots = c("boxplot", "jitter"), 
+						  boxplot.width = 0.6, main = "Jessa.Pons.RGC_and_progenitor", 
+						  boxplot.lineweight = 0.5) + 
+						  geom_smooth(aes(group = color, color = color), se = FALSE, linewidth = 1.5) + 
+						  scale_color_manual(values = Darken(dittoColors()[1:2]))
+```
+
 ### Single Cell RNA-seq
 #### dimReduc Sweep
 To get lots of dimensionality reductions with differing parameters.
@@ -329,7 +355,8 @@ library("BiocParallel")
 #' @param outprefix The prefix for output files.
 #' @param xlsx A list to store results that will be later written to an Excel file. Defaults to NULL.
 #' @param cats A character vector specifying the main categories of gene sets to consider from MSigDb. Defaults to "H".
-#' @param subcats A character vector specifying the subcategories of gene sets to consider from MSigDb. Must match in length with 'cats'. Defaults to NULL.
+#' @param subcats A character vector specifying the subcategories of gene sets to consider from MSigDb. 
+#'   Must match in length with 'cats'. Defaults to NULL.
 #' @param ... Additional arguments to pass to the 'fgsea' function.
 #'
 #' @return A list of GSEA results if 'xlsx' is not NULL, otherwise, results are saved as files in the specified output directory.
@@ -341,7 +368,8 @@ library("BiocParallel")
 #' }
 #' 
 #' @note Ensure that 'cats' and 'subcats' vectors have equal lengths.
-#' @note The function creates various output files including detailed GSEA results, enrichment plots, and tables of top enriched pathways.
+#' @note The function creates various output files including detailed GSEA results, 
+#'   enrichment plots, and tables of top enriched pathways.
 #' 
 #' @author Jared Andrews
 runGSEA <- function(msigs, ranked.genes, outdir, outprefix, 
