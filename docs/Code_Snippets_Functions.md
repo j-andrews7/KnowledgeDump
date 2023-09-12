@@ -845,6 +845,8 @@ run_enrichKEGG <- function(res.list, padj.th = 0.05, lfc.th = 0, outdir = "./enr
                   downregulated = df[[id.col]][df$padj < padj.th & df$log2FoldChange < -lfc.th],
                   all_de = df[[id.col]][df$padj < padj.th])
     
+    skip <- FALSE
+									
     tryCatch({
       genes$upregulated <- bitr(genes$upregulated, fromType = id.type, toType = "ENTREZID", 
                             OrgDb = OrgDb)$ENTREZID
@@ -859,8 +861,12 @@ run_enrichKEGG <- function(res.list, padj.th = 0.05, lfc.th = 0, outdir = "./enr
       message("There was an error: ", e)
       message("Most likely, no gene identifiers for hits could be mapped to entrez IDs.")
       message("Proceeding to next comparison in results list.")
-      next
+      skip <<- TRUE
     })
+
+	if (skip) {
+      next
+    }
     
     # Remove lowly expressed genes.
     bg <- df[[id.col]][!is.na(df$padj)]
@@ -965,6 +971,8 @@ run_enrichPathway <- function(res.list, padj.th = 0.05, lfc.th = 0, outdir = "./
                   downregulated = df[[id.col]][df$padj < padj.th  & df$log2FoldChange < -lfc.th],
                   all_de = df[[id.col]][df$padj < padj.th])
     
+    skip <- FALSE
+									
     tryCatch({
       genes$upregulated <- bitr(genes$upregulated, fromType = id.type, toType = "ENTREZID", 
                             OrgDb = OrgDb)$ENTREZID
@@ -979,8 +987,12 @@ run_enrichPathway <- function(res.list, padj.th = 0.05, lfc.th = 0, outdir = "./
       message("There was an error: ", e)
       message("Most likely, no gene identifiers for hits could be mapped to entrez IDs.")
       message("Proceeding to next comparison in results list.")
-      next
+      skip <<- TRUE
     })
+
+	if (skip) {
+      next
+    }
     
     # Remove duplicate IDs.
     gl <- gl[unique(names(gl))]
@@ -1011,7 +1023,7 @@ run_enrichPathway <- function(res.list, padj.th = 0.05, lfc.th = 0, outdir = "./
       print(p)
       dev.off()
       
-      if (nrow(ego) > 1) {
+      if (nrow(ego) > 2) {
         pdf(paste0(out, "/Reactome_Enrichments.termsim.Top30_Tree.pdf"), width = 17, height = 14)
         p <- treeplot(ego, showCategory = 30, fontsize = 4, offset.params = list(bar_tree = rel(2.5), tiplab = rel(2.5), extend = 0.3, hexpand = 0.1), cluster.params = list(method = "ward.D", n = min(c(6, ceiling(sqrt(nrow(ego))))), color = NULL, label_words_n = 5, label_format = 30))
         print(p)
@@ -1114,7 +1126,9 @@ run_enrichGO <- function(res.list, padj.th = 0.05, lfc.th = 0, outdir = "./enric
     genes <- list(upregulated = df[[id.col]][df$padj < padj.th & df$log2FoldChange > lfc.th],
                   downregulated = df[[id.col]][df$padj < padj.th  & df$log2FoldChange < -lfc.th],
                   all_de = df[[id.col]][df$padj < padj.th])
-    
+
+	skip <- FALSE
+									
     tryCatch({
       genes$upregulated <- bitr(genes$upregulated, fromType = id.type, toType = "ENTREZID", 
                             OrgDb = OrgDb)$ENTREZID
@@ -1129,8 +1143,12 @@ run_enrichGO <- function(res.list, padj.th = 0.05, lfc.th = 0, outdir = "./enric
       message("There was an error: ", e)
       message("Most likely, no gene identifiers for hits could be mapped to entrez IDs.")
       message("Proceeding to next comparison in results list.")
-      next
+      skip <<- TRUE
     })
+
+	if (skip) {
+      next
+    }
     
     # Remove lowly expressed genes.
     bg <- df[[id.col]][!is.na(df$padj)]
@@ -1231,17 +1249,22 @@ run_enrich_simple <- function(genes, bg, name = "sample", outdir = "./enrichment
     xx <- strsplit(bg, "\\.")
     bg <- unlist(lapply(xx, FUN = function(x) x[1]))
   }
-  
+
+  skip <- FALSE
+						
   tryCatch({
     genes <- bitr(genes, fromType = id.type, toType = "ENTREZID", 
                           OrgDb = OrgDb)$ENTREZID
-
   }, 
   error = function(e) {
     message("There was an error: ", e)
     message("Most likely, no gene identifiers for hits could be mapped to entrez IDs.")
-    next
+    skip <<- TRUE
   })
+  
+  if (skip) {
+	next
+  }
   
   bg <- bitr(bg, fromType = id.type, toType = "ENTREZID", OrgDb = OrgDb)$ENTREZID
   
@@ -1316,6 +1339,9 @@ run_enrichGO_simple <- function(genes, bg, name = "sample", outdir = "./enrichme
     xx <- strsplit(bg, "\\.")
     bg <- unlist(lapply(xx, FUN = function(x) x[1]))
   }
+
+  skip <- FALSE
+						
   tryCatch({
     genes <- bitr(genes, fromType = id.type, toType = "ENTREZID", 
                           OrgDb = OrgDb)$ENTREZID
@@ -1324,8 +1350,12 @@ run_enrichGO_simple <- function(genes, bg, name = "sample", outdir = "./enrichme
   error = function(e) {
     message("There was an error: ", e)
     message("Most likely, no gene identifiers for hits could be mapped to entrez IDs.")
-    next
+    skip <<- TRUE
   })
+
+  if (skip) {
+	next
+  }
   
   bg <- bitr(bg, fromType = id.type, toType = "ENTREZID", OrgDb = OrgDb)$ENTREZID
 
