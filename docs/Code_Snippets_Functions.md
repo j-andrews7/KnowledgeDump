@@ -819,7 +819,7 @@ run_enrichKEGG <- function(res.list, padj.th = 0.05, lfc.th = 0, outdir = "./enr
     df <- res.list[[r]]
 
 	if (lfc.th != 0) {
-      r <- paste0(r,"-LFC", lfc.th, "filt")
+      r <- paste0(r,"-LFC", round(lfc.th, digits = 3), "filt")
     }
 
     out <- file.path(outdir, r)
@@ -946,7 +946,7 @@ run_enrichPathway <- function(res.list, padj.th = 0.05, lfc.th = 0, outdir = "./
     df <- res.list[[r]]
 
 	if (lfc.th != 0) {
-      r <- paste0(r,"-LFC", lfc.th, "filt")
+      r <- paste0(r,"-LFC", round(lfc.th, digits = 3), "filt")
     }
 
     out <- file.path(outdir, r)
@@ -1100,7 +1100,7 @@ run_enrichGO <- function(res.list, padj.th = 0.05, lfc.th = 0, outdir = "./enric
     df <- res.list[[r]]
 
 	if (lfc.th != 0) {
-      r <- paste0(r,"-LFC", lfc.th, "filt")
+      r <- paste0(r,"-LFC", round(lfc.th, digits = 3), "filt")
     }
 
     out <- file.path(outdir, r)
