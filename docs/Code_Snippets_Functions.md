@@ -816,7 +816,7 @@ run_enrichKEGG <- function(res.list, padj.th = 0.05, lfc.th = 0, outdir = "./enr
                          organism = "hsa", ...) {
   # Do GO enrichment on up/downregulated genes.
   for (r in names(res.list)) {
-    df <- res[[r]]
+    df <- res.list[[r]]
 
 	if (lfc.th != 0) {
       r <- paste0(r,"-LFC", lfc.th, "filt")
@@ -920,7 +920,7 @@ run_enrichKEGG <- function(res.list, padj.th = 0.05, lfc.th = 0, outdir = "./enr
 run_enrichKEGG(res, OrgDb = "org.Mm.eg.db", organism = "mmu")
 ```
 
-#### Reactome
+#### Reactome Enrichment
 
 ```r
 #' @param res.list Named list of DESeq2 results data.frames.
@@ -937,7 +937,7 @@ run_enrichPathway <- function(res.list, padj.th = 0.05, lfc.th = 0, outdir = "./
                          OrgDb = "org.Hs.eg.db", id.col = "ENSEMBL", id.type = "ENSEMBL", organism = "human", ...) {
   # Do GO enrichment on up/downregulated genes.
   for (r in names(res.list)) {
-    df <- res[[r]]
+    df <- res.list[[r]]
 
 	if (lfc.th != 0) {
       r <- paste0(r,"-LFC", lfc.th, "filt")
@@ -1085,7 +1085,7 @@ run_enrichGO <- function(res.list, padj.th = 0.05, lfc.th = 0, outdir = "./enric
                          onts = c("BP", "MF", "CC", "ALL"), ...) {
   # Do GO enrichment on up/downregulated genes.
   for (r in names(res.list)) {
-    df <- res[[r]]
+    df <- res.list[[r]]
 
 	if (lfc.th != 0) {
       r <- paste0(r,"-LFC", lfc.th, "filt")
@@ -1191,7 +1191,7 @@ run_enrichGO <- function(res.list, padj.th = 0.05, lfc.th = 0, outdir = "./enric
 run_enrichGO(res, OrgDb = "org.Mm.eg.db")
 ```
 
-#### KEGG Enrichment (simple)
+#### KEGG/Reactome Enrichment (simple)
 
 This version just uses lists of genes that can be defined however which way.
 
