@@ -808,7 +808,7 @@ library("ReactomePA")
 #' @param OrgDb Character scalar for annotation database to use.
 #' @param id.col Character scalar indicating name of gene ID column for each data.frame in \code{res.list}
 #' @param id.type Character scalar indicating type of gene ID used. See \code{keytypes(org.Hs.eg.db)} for all options.
-#' @param species Character scalar indicating species in KEGG format ("hsa", "mmu", etc).
+#' @param organism Character scalar indicating species in KEGG format ("hsa", "mmu", etc).
 #' @param ... Passed to \code{compareCluster}.
 #' @author Jared Andrews
 run_enrichKEGG <- function(res.list, padj.th = 0.05, lfc.th = 0, outdir = "./enrichments",
@@ -1802,4 +1802,12 @@ For checking or whatnot. Change `samplerate` to extract a given percentage of re
 ```bash
 module load bbmap
 reformat.sh in=thefastq_R#_001.fastq.gz out=thefastq_R#_001.subsampled.fastq.gz samplerate=0.001
+```
+
+### Remove N Characters from End of Field in CSV
+
+For removing PAM sequence, etc.
+
+```bash
+awk -F, -v OFS=',' '{ $2=substr($2, 1, length($2)-3) } 1' input.csv > output.csv
 ```
