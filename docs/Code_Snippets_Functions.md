@@ -1802,6 +1802,9 @@ For checking or whatnot. Change `samplerate` to extract a given percentage of re
 ```bash
 module load bbmap
 reformat.sh in=thefastq_R#_001.fastq.gz out=thefastq_R#_001.subsampled.fastq.gz samplerate=0.001
+
+# Or if a specific number of reads (pairs) are desired, e.g. 5 million.
+reformat.sh in=thefastq_R#_001.fastq.gz out=thefastq_R#_001.subsampled.fastq.gz samplereadstarget=5000000
 ```
 
 ### Remove N Characters from End of Field in CSV
