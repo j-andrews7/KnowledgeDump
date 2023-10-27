@@ -1861,8 +1861,13 @@ reformat.sh in=thefastq_R#_001.fastq.gz out=thefastq_R#_001.subsampled.fastq.gz 
 
 # Or if a specific number of reads (pairs) are desired, e.g. 61,111,111 for 5x coverage with paired 150 bp read WGS.
 reformat.sh in=thefastq_R#_001.fastq.gz out=thefastq_R#_001.subsampled.fastq.gz samplereadstarget=61111111
-
+# 10x coverage with 150 bp reads.
 reformat.sh in=thefastq_R#_001.fastq.gz out=thefastq_R#_001.subsampled.fastq.gz samplereadstarget=122222222
+
+# 5x coverage with paired 100 bp read WGS.
+reformat.sh in=thefastq_R#_001.fastq.gz out=thefastq_R#_001.subsampled.fastq.gz samplereadstarget=91666666
+# 10x coverage with 100 bp reads.
+reformat.sh in=thefastq_R#_001.fastq.gz out=thefastq_R#_001.subsampled.fastq.gz samplereadstarget=183333333
 ```
 
 ### Remove N Characters from End of Field in CSV
