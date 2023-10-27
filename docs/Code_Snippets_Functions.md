@@ -663,6 +663,62 @@ summarize_GSEA <- function(gsea.list, outdir, padj.th = 0.05, top = 75) {
 summarize_GSEA(xl.lists, outdir = "./GSEA/RA.v.vehicle")
 ```
 
+#### GO Semantic Similarity Heatmaps
+
+These cluster GO terms together by their similarity, allowing us to collapse closely related terms together. This is useful for summarizing the broad changes in each comparison.
+
+```r
+#' Simplify GSEA Results and Generate PDF
+#'
+#' This function simplifies GSEA (Gene Set Enrichment Analysis) results from
+#' GO term genesets based on semantic similarity of the genesets.
+#' It filters categorizes the results returned from fgsea based on the 
+#' normalized enrichment score (NES) and adjust p-value.
+#'
+#' @param res Data frame containing the GSEA results from fgsea.
+#' @param msig Data frame containing the gene set metadata.
+#' @param outname Character string specifying the name of the output PDF file. Default is "simplified_GSEA.pdf".
+#' @param pos.name Character string specifying the name for positively enriched sets. Default is "g1_enriched".
+#' @param neg.name Character string specifying the name for negatively enriched sets. Default is "g2_enriched".
+#' @param height Numeric specifying the height of the PDF. Default is 12.
+#' @param width Numeric specifying the width of the PDF. Default is 12.
+#' @param ... Additional parameters to pass to the `simplifyGOFromMultipleLists` function.
+#'
+#' @return NULL. The function generates a PDF file as a side effect.
+#' @author Jared Andrews
+#' 
+#' @seealso \code{\link[simplifyEnrichment]{simplifyGOFromMultipleLists}}
+simplify_GSEA <- function(res,
+                          msig,
+                          outname = "simplified_GSEA.pdf",
+                          pos.name = "g1_enriched",
+                          neg.name = "g2_enriched",
+                          height = 12,
+                          width = 12,
+                          ...) {
+  # Check for GO terms
+  res$ID <- msig$gs_exact_source[match(res$path, msig$gs_name)]
+  res$p.adjust <- res$padj
+  
+  pos_res <- res[res$NES > 0, ]
+  neg_res <- res[res$NES < 0, ]
+  lt <- list()
+  lt[[pos.name]] <- pos_res
+  lt[[neg.name]] <- neg_res
+  
+  pdf(outname, height = height, width = width)
+  simplifyGOFromMultipleLists(lt, ...)
+  dev.off()
+}
+
+for (r in c("WT.midline.v.hemi.C5.GO.BP", "WT.midline.v.hemi.C5.GO.MF", "WT.midline.v.hemi.C5.GO.CC")) {
+  fgsea.res <- xl.lists[[r]]
+  simplify_GSEA(fgsea.res, msig, pos.name = "midline_enriched", neg.name = "hemispheric_enriched", 
+			    outname = paste0("./GSEA/", r, ".simplifyHeatmap.pdf"), padj_cutoff = 0.05, 
+			    min_term = 2, fontsize_range = c(7, 14), 
+			    heatmap_param = list(col = c("blue", "white", "red"), breaks = c(1, 0.05, 0.0005)))
+}
+```
 #### Plot Leading Edge Genes
 GSEA returns the leading edge genes that are driving the score for a given signature. It can be useful to have a closer look at these genes in the form of boxplots and/or heatmaps.
 
@@ -1803,8 +1859,10 @@ For checking or whatnot. Change `samplerate` to extract a given percentage of re
 module load bbmap
 reformat.sh in=thefastq_R#_001.fastq.gz out=thefastq_R#_001.subsampled.fastq.gz samplerate=0.001
 
-# Or if a specific number of reads (pairs) are desired, e.g. 5 million.
-reformat.sh in=thefastq_R#_001.fastq.gz out=thefastq_R#_001.subsampled.fastq.gz samplereadstarget=5000000
+# Or if a specific number of reads (pairs) are desired, e.g. 61,111,111 for 5x coverage with paired 150 bp read WGS.
+reformat.sh in=thefastq_R#_001.fastq.gz out=thefastq_R#_001.subsampled.fastq.gz samplereadstarget=61111111
+
+reformat.sh in=thefastq_R#_001.fastq.gz out=thefastq_R#_001.subsampled.fastq.gz samplereadstarget=122222222
 ```
 
 ### Remove N Characters from End of Field in CSV
