@@ -700,6 +700,11 @@ simplify_GSEA <- function(res,
   res$ID <- msig$gs_exact_source[match(res$path, msig$gs_name)]
   res$p.adjust <- res$padj
   
+  if (nrow(res) < 5) {
+	message("Not enough terms to cluster (<5), skipping.")
+	return(NULL)
+  }
+  
   pos_res <- res[res$NES > 0, ]
   neg_res <- res[res$NES < 0, ]
   lt <- list()
