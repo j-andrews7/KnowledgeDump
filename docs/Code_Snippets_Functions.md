@@ -1492,6 +1492,8 @@ library("IlluminaHumanMethylationEPICanno.ilm10b4.hg19")
 #' @param basedir Character scalar for the base directory containing IDATs.
 #' @param controls Character vector for control sample names found in \code{name_col}.
 #' @param outdir Character scalar for output directory.
+#' @param chr Character vector indicating chromosomes to plot in genome plots. If provided, an additional
+#'   set of genome plots will be created with only these chromosomes.
 #' @param exclude_regions GRanges object containing regions to exclude from the CN plots.
 #' @param detail_regions GRanges object containing regions to label.
 #' @param array_type Character scalar indicating more array type. Options are "450k", "EPIC", or "overlap" for
@@ -1499,7 +1501,7 @@ library("IlluminaHumanMethylationEPICanno.ilm10b4.hg19")
 #' @param idat_cols Character scalar or vector containing column names for sample identifier columns to paste together.
 #'   This should be the IDAT ID.
 #' @param name_col Character scalar for column containing sample names.
-run_conumee_CNV <- function(meta, basedir, controls, outdir, exclude_regions = NULL, detail_regions = NULL, 
+run_conumee_CNV <- function(meta, basedir, controls, outdir, chr = "all", exclude_regions = NULL, detail_regions = NULL, 
                             array_type = "450k", idat_cols = c("Sentrix_ID", "Sentrix_Position"),
                             name_col = "Sample") {
   dir.create(outdir, showWarnings = FALSE, recursive = TRUE)
@@ -1540,6 +1542,10 @@ run_conumee_CNV <- function(meta, basedir, controls, outdir, exclude_regions = N
     
     x <- CNV.detail(x)
     CNV.genomeplot(x, main = paste0(s, " - detailed"))
+    
+    if (length(chr) > 1) {
+      CNV.genomeplot(x, main = paste0(s, " - ", paste(chr, collapse = ", ")), chr = chr)
+    }
     
     CNV.write(x, what = "segments", file = paste0(outdir, "/", s, ".CNVsegments.seg"))  
     CNV.write(x, what = "bins", file = paste0(outdir, "/", s, ".CNVbins.igv"))
