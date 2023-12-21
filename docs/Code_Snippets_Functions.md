@@ -1502,9 +1502,12 @@ library("IlluminaHumanMethylationEPICanno.ilm10b4.hg19")
 run_conumee_CNV <- function(meta, basedir, controls, outdir, exclude_regions = NULL, detail_regions = NULL, 
                             array_type = "450k", idat_cols = c("Sentrix_ID", "Sentrix_Position"),
                             name_col = "Sample") {
+  dir.create(outdir, showWarnings = FALSE, recursive = TRUE)
+  
   ## Load data.
   meta <- read.csv(meta)
-  meta$Basename <- file.path(basedir, apply(meta[,idat_cols, drop = FALSE], MARGIN = 1, FUN = paste0, collapse = ""))
+  meta$Basename <- file.path(basedir, apply(meta[,idat_cols, drop = FALSE], MARGIN = 1, FUN = paste0, collapse = "_"))
+
   samps <- read.metharray.exp(targets = meta, force = TRUE)
   
   samps <- preprocessNoob(samps)
@@ -1531,10 +1534,12 @@ run_conumee_CNV <- function(meta, basedir, controls, outdir, exclude_regions = N
     x <- CNV.fit(cn.data[s.data], cn.data[c.data], anno)
     
     x <- CNV.bin(x)
-    x <- CNV.detail(x)
     x <- CNV.segment(x)
     
     CNV.genomeplot(x, main = s)
+    
+    x <- CNV.detail(x)
+    CNV.genomeplot(x, main = paste0(s, " - detailed"))
     
     CNV.write(x, what = "segments", file = paste0(outdir, "/", s, ".CNVsegments.seg"))  
     CNV.write(x, what = "bins", file = paste0(outdir, "/", s, ".CNVbins.igv"))
@@ -1542,7 +1547,6 @@ run_conumee_CNV <- function(meta, basedir, controls, outdir, exclude_regions = N
     CNV.write(x, what = "probes", file = paste0(outdir, "/", s, ".CNVprobes.igv"))
   }
   dev.off()
-
 }
 
 ## Detail regions can be made from a BED file if wanted, see the example data for format.
