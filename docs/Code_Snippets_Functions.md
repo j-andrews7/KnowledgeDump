@@ -51,7 +51,7 @@ df <- queryMany(c(1017, 1018, "ENSG00000148795", "LAIR1"),
 df$summary
 ```
 
-### Convert human to mouse gene symbols
+### Convert human to mouse gene orthologs
 
 === "Using babelgene"
     ```r
@@ -235,6 +235,66 @@ dittoPlotVarsAcrossGroups(dds, c("Cdk2", "Jun", "Fos", "Fcmr"), group.by = "Broa
 						  scale_color_manual(values = Darken(dittoColors()[1:2]))
 ```
 
+#### plotly Subplot Orientation Mirroring
+
+For when you want multiple subplots to mirror each other in terms of orientation. Note that `scene` must be set properly in each `plot_ly` call.
+
+```r
+library(plotly)
+
+pal <- c("#18B803", "#138901", "#b3b3b3", "#5A5A5A")
+pal <- setNames(pal, c("s1", "s2", "s3", "s4"))
+
+fig1 <- mdf.rpca %>% plot_ly(x = ~DC1, y = ~DC2, z = ~DC3, color = ~sample, mode = "markers", marker = list(size = 3), scene = "scene1", colors = pal) %>% 
+     layout(annotations = list(x = 0.2 , y = 1.05, text = "sample", showarrow = F, 
+xref='paper', yref='paper'))
+
+fig2 <- mdf.rpca %>% plot_ly(x = ~DC1, y = ~DC2, z = ~DC3, color = ~Vim, mode = "markers", marker = list(size = 3), scene = "scene2") %>% 
+     layout(annotations = list(x = 0.2 , y = 1.05, text = "Vim", showarrow = F, 
+xref='paper', yref='paper'))
+
+fig3 <- mdf.rpca %>% plot_ly(x = ~DC1, y = ~DC2, z = ~DC3, color = ~Mbp, mode = "markers", marker = list(size = 3), scene = "scene3") %>% 
+     layout(annotations = list(x = 0.2 , y = 1.05, text = "Mbp", showarrow = F, 
+xref='paper', yref='paper'))
+
+fig4 <- mdf.rpca %>% plot_ly(x = ~DC1, y = ~DC2, z = ~DC3, color = ~Pdgfra, mode = "markers", marker = list(size = 3), scene = "scene4") %>% 
+     layout(annotations = list(x = 0.2 , y = 1.05, text = "Pdgfra", showarrow = F, 
+xref='paper', yref='paper'))
+
+fig5 <- mdf.rpca %>% plot_ly(x = ~DC1, y = ~DC2, z = ~DC3, color = ~Plp1, mode = "markers", marker = list(size = 3), scene = "scene5") %>% 
+     layout(annotations = list(x = 0.2 , y = 1.05, text = "Plp1", showarrow = F, 
+xref='paper', yref='paper'))
+
+fig6 <- mdf.rpca %>% plot_ly(x = ~DC1, y = ~DC2, z = ~DC3, color = ~Fyn, mode = "markers", marker = list(size = 3), scene = "scene6") %>% 
+     layout(annotations = list(x = 0.2 , y = 1.05, text = "Fyn", showarrow = F, 
+xref='paper', yref='paper'))
+
+main_plot <- subplot(fig1, fig2, fig3, fig4, fig5, fig6, nrows = 2, margin = 0.06) %>% 
+  layout(
+         scene  = list(domain = list(x = c(0, 0.33), y = c(0.5, 1)), aspectmode = "cube"), 
+         scene2 = list(domain = list(x = c(0.33, 0.66), y = c(0.5, 1)), aspectmode = "cube"),
+         scene3 = list(domain = list(x = c(0.66, 1), y = c(0.5, 1)), aspectmode = "cube"),
+         scene4 = list(domain = list(x = c(0, 0.33), y = c(0, 0.5)), aspectmode = "cube"),
+         scene5 = list(domain = list(x = c(0.33, 0.66), y = c(0, 0.5)), aspectmode = "cube"),
+         scene6 = list(domain = list(x = c(0.66, 1), y = c(0, 0.5)), aspectmode = "cube")
+  )
+
+main_plot <- main_plot %>% 
+  htmlwidgets::onRender(
+    "function(x, el) {
+      x.on('plotly_relayout', function(d) {
+        const camera = Object.keys(d).filter((key) => /\\.camera$/.test(key));
+        if (camera.length) {
+          const scenes = Object.keys(x.layout).filter((key) => /^scene\\d*/.test(key));
+          const new_layout = {};
+          scenes.forEach(key => {
+            new_layout[key] = {...x.layout[key], camera: {...d[camera]}};
+          });
+          Plotly.relayout(x, new_layout);
+        }
+      });
+    }")
+```
 ### Single Cell RNA-seq
 #### dimReduc Sweep
 To get lots of dimensionality reductions with differing parameters.
@@ -1813,6 +1873,32 @@ To use from a directory of FASTQs:
 for sample_name in $(ls *_L00*_R1_001.fastq.gz | rev | cut -d'_' -f4- | rev | sort | uniq); do
     concat_fastq "$sample_name"
 done
+```
+
+#### Recursively Get File Paths with Suffix
+
+Useful for grabbing FASTQs from seq runs and all.
+
+```bash
+# Function to recursively get all files with a given suffix from a directory, 
+# sort them, and output their full paths to a text file. 
+# Usage: get_files_with_suffix_sorted <directory> <suffix> <output_file> 
+function get_files_with_suffix { 
+	local directory=$1 
+	local suffix=$2 
+	local output_file=$3 
+	
+	# Ensure the directory exists 
+	if [[ ! -d "$directory" ]]; then 
+		echo "The specified directory does not exist: $directory" 
+		return 1 
+	fi 
+	
+	# Use find to get files with the given suffix, sort them, and output to the specified file 
+	find "$directory" -type f -name "*.$suffix" | sort > "$output_file" 
+} 
+
+# Example usage: # get_files_with_suffix /path/to/directory txt output_sorted.txt
 ```
 
 ### `tar` and `gzip` Directory
