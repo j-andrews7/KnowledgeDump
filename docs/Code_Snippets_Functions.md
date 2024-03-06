@@ -1919,6 +1919,14 @@ Useful for file renaming as well, e.g.:
 for f in *.idat.gz; do samp=$(echo "$f" | sed 's/^[^_]*_//'); mv "$f" "$samp"; done
 ```
 
+### Kill All LSF Jobs with String in Name
+
+For when you screw up an array or whatnot.
+
+```bash
+ bjobs -w | grep 'bbsplit50' | awk '{print $1}' | xargs bkill
+```
+
 ## File Manipulation Tasks
 
 > If you don't love data cleaning, you don't love bioinformatics.
