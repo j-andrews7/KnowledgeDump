@@ -10,7 +10,7 @@ This serves as a collection of code snippets and functions for common data scien
 ### Gene/Peak Annotations & Conversions
 
 #### Convert Ensembl Gene IDs to Symbols (or vice versa)
-There's like 45 ways to do this, but these are pretty easy with a decent recovery rate.
+There's like 45 ways to do this, but these are pretty easy with a decent recovery rate. Note that the `mygene` approach will just return the top hit, which may not be a perfect match to the query, e.g. symbols like "SOST" may return "SOSTDC1" as the top hit. The `ensembldb` approach is generally more robust.
 
 === "Using mygene"
 
