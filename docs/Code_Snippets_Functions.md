@@ -1783,6 +1783,10 @@ jaccard <- function(a, b) {
 	union = length(a) + length(b) - intersection
 	return (intersection/union)
 }
+
+a <- c("TP53", "CDK2", "LAIR1")
+b <- c("TP53", "CDK1", "LAIR2")
+jaccard(a, b)
 ```
 ## Python
 :snake: This is content.
