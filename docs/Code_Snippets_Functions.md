@@ -1773,7 +1773,17 @@ contrasts = list("shPDGFRA_2.v.shScr" = c("shRNA", "shPDGFRA_2", "shScr"),
 res <- get_DESEQ2_res(dds, res.list = res, contrasts = contrasts)
 ```
 
+### Jaccard Similarity/Distance
 
+For comparing sets and whatnot. Closer to 1, the more similar the sets. `1 - jaccard` is the distance between two sets, which represents the dissimilarity between them.
+
+```r
+jaccard <- function(a, b) {
+	intersection = length(intersect(a, b))
+	union = length(a) + length(b) - intersection
+	return (intersection/union)
+}
+```
 ## Python
 :snake: This is content.
 
@@ -1898,7 +1908,7 @@ function get_files_with_suffix {
 	find "$directory" -type f -name "*.$suffix" | sort > "$output_file" 
 } 
 
-# Example usage: # get_files_with_suffix /path/to/directory txt output_sorted.txt
+# Example usage: # get_files_with_suffix /path/to/directory .fastq.gz output_sorted.txt
 ```
 
 ### `tar` and `gzip` Directory
