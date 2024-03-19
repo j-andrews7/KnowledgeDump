@@ -1667,7 +1667,7 @@ This is a super lazy function to run through a list of contrasts and create diff
 #'                shrink.method = "normal", outdir = "./my_results", BPPARAM = MulticoreParam(2))
 #' }
 get_DESEQ2_res <- function(dds, res.list, contrasts, user.mat = FALSE, block = NULL, design = NULL, alpha = 0.05, 
-						   lfc.th = c(log2(1.5), log2(2)), shrink.method = "apeglm", outdir = "./de", BPPARAM = NULL) {
+						   lfc.th = c(log2(1.5), log2(1.25)), shrink.method = "apeglm", outdir = "./de", BPPARAM = NULL) {
   
   dir.create(file.path(outdir), showWarnings = FALSE, recursive = TRUE)
   
@@ -1699,7 +1699,7 @@ get_DESEQ2_res <- function(dds, res.list, contrasts, user.mat = FALSE, block = N
     dds <- DESeqDataSet(dds, design = desgn)
     dds <- DESeq(dds, BPPARAM = BPPARAM)
 
-    res1 <- results(dds, contrast = con, alpha = alpha)
+    res1 <- results(dds, contrast = con, alpha = alpha, BPPARAM = BPPARAM)
     res1$ENSEMBL <- rownames(res1)
     res1$SYMBOL <- rowData(dds)$SYMBOL
     
@@ -1710,7 +1710,7 @@ get_DESEQ2_res <- function(dds, res.list, contrasts, user.mat = FALSE, block = N
       if (shrink.method == "ashr") {
         coef <- NULL
       }
-      shrink <- lfcShrink(dds, res = res1, coef = coef, type = shrink.method)
+      shrink <- lfcShrink(dds, res = res1, coef = coef, type = shrink.method, BPPARAM = BPPARAM)
       shrink$ENSEMBL <- rownames(shrink)
       shrink$SYMBOL <- rowData(dds)$SYMBOL
       rownames(shrink) <- shrink$SYMBOL
@@ -1729,7 +1729,7 @@ get_DESEQ2_res <- function(dds, res.list, contrasts, user.mat = FALSE, block = N
     
     for (l in lfc.th) {
       
-      res <- results(dds, contrast = con, alpha = alpha, lfcThreshold = l)
+      res <- results(dds, contrast = con, alpha = alpha, lfcThreshold = l, BPPARAM = BPPARAM)
       res$ENSEMBL <- rownames(res)
       res$SYMBOL <- rowData(dds)$SYMBOL
       
@@ -1739,7 +1739,7 @@ get_DESEQ2_res <- function(dds, res.list, contrasts, user.mat = FALSE, block = N
           coef <- NULL
         }
         out.name <- paste0(rname, "-shLFC", l)
-        shrink <- lfcShrink(dds, res = res, coef = coef, type = shrink.method)
+        shrink <- lfcShrink(dds, res = res, coef = coef, type = shrink.method, BPPARAM = BPPARAM)
         shrink$ENSEMBL <- rownames(shrink)
         shrink$SYMBOL <- rowData(dds)$SYMBOL
         rownames(shrink) <- shrink$SYMBOL
