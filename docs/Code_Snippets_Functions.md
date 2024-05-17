@@ -120,7 +120,7 @@ Biomart goes down pretty often, so the `babelgene` option is more reliable.
 
 ### Viz
 
-#### 3D tSNE/UMAP/PCA
+#### 3D tSNE/UMAP/PCA/Diffusion Map
 Occasionally, 3D dimensionality reduction plots can be kind of useful for exploratory purposes.
 
 ```r
@@ -245,27 +245,33 @@ library(plotly)
 pal <- c("#18B803", "#138901", "#b3b3b3", "#5A5A5A")
 pal <- setNames(pal, c("s1", "s2", "s3", "s4"))
 
-fig1 <- mdf.rpca %>% plot_ly(x = ~DC1, y = ~DC2, z = ~DC3, color = ~sample, mode = "markers", marker = list(size = 3), scene = "scene1", colors = pal) %>% 
+fig1 <- mdf.rpca %>% plot_ly(x = ~DC1, y = ~DC2, z = ~DC3, color = ~sample, mode = "markers", 
+							 marker = list(size = 3), scene = "scene1", colors = pal) %>% 
      layout(annotations = list(x = 0.2 , y = 1.05, text = "sample", showarrow = F, 
 xref='paper', yref='paper'))
 
-fig2 <- mdf.rpca %>% plot_ly(x = ~DC1, y = ~DC2, z = ~DC3, color = ~Vim, mode = "markers", marker = list(size = 3), scene = "scene2") %>% 
+fig2 <- mdf.rpca %>% plot_ly(x = ~DC1, y = ~DC2, z = ~DC3, color = ~Vim, mode = "markers", 
+							 marker = list(size = 3), scene = "scene2") %>% 
      layout(annotations = list(x = 0.2 , y = 1.05, text = "Vim", showarrow = F, 
 xref='paper', yref='paper'))
 
-fig3 <- mdf.rpca %>% plot_ly(x = ~DC1, y = ~DC2, z = ~DC3, color = ~Mbp, mode = "markers", marker = list(size = 3), scene = "scene3") %>% 
+fig3 <- mdf.rpca %>% plot_ly(x = ~DC1, y = ~DC2, z = ~DC3, color = ~Mbp, mode = "markers", 
+							 marker = list(size = 3), scene = "scene3") %>% 
      layout(annotations = list(x = 0.2 , y = 1.05, text = "Mbp", showarrow = F, 
 xref='paper', yref='paper'))
 
-fig4 <- mdf.rpca %>% plot_ly(x = ~DC1, y = ~DC2, z = ~DC3, color = ~Pdgfra, mode = "markers", marker = list(size = 3), scene = "scene4") %>% 
+fig4 <- mdf.rpca %>% plot_ly(x = ~DC1, y = ~DC2, z = ~DC3, color = ~Pdgfra, mode = "markers", 
+							 marker = list(size = 3), scene = "scene4") %>% 
      layout(annotations = list(x = 0.2 , y = 1.05, text = "Pdgfra", showarrow = F, 
 xref='paper', yref='paper'))
 
-fig5 <- mdf.rpca %>% plot_ly(x = ~DC1, y = ~DC2, z = ~DC3, color = ~Plp1, mode = "markers", marker = list(size = 3), scene = "scene5") %>% 
+fig5 <- mdf.rpca %>% plot_ly(x = ~DC1, y = ~DC2, z = ~DC3, color = ~Plp1, mode = "markers", 
+							 marker = list(size = 3), scene = "scene5") %>% 
      layout(annotations = list(x = 0.2 , y = 1.05, text = "Plp1", showarrow = F, 
 xref='paper', yref='paper'))
 
-fig6 <- mdf.rpca %>% plot_ly(x = ~DC1, y = ~DC2, z = ~DC3, color = ~Fyn, mode = "markers", marker = list(size = 3), scene = "scene6") %>% 
+fig6 <- mdf.rpca %>% plot_ly(x = ~DC1, y = ~DC2, z = ~DC3, color = ~Fyn, mode = "markers", 
+							 marker = list(size = 3), scene = "scene6") %>% 
      layout(annotations = list(x = 0.2 , y = 1.05, text = "Fyn", showarrow = F, 
 xref='paper', yref='paper'))
 
@@ -305,18 +311,27 @@ library(scater)
 library(BiocParallel)
 
 #' @param sce SingleCellExperiment object.
-#' @param dimred Character scalar indicating the name of the dimensionality reduction use as input.
+#' @param dimred Character scalar indicating the name of the dimensionality reduction to use as input.
 #' @param min_dist Numeric vector indicating parameters to sweep for min_dist UMAP parameter.
 #' @param n_neighbors Numeric vector indicating parameters to sweep for n_neighbors UMAP parameter.
+#' @param spread Numeric vector indicating parameters to sweep for spread UMAP parameter. 
+#'   In combination with min_dist, this controls the "clumpiness" of the cells.
+#' @param BPPARAM BiocParallelParam object to use for parallelization.
 umap_sweep <- function(sce, dim_reduc, 
 					   min_dist = c(0.01, 0.02, 0.05, 0.1, 0.2, 0.3), 
-					   n_neighbors = c(10, 15, 20, 30, 40, 50)) {
+					   n_neighbors = c(10, 15, 20, 30, 40, 50),
+					   spread = c(0.8, 1, 1.2),
+					   BPPARAM = BiocParallel::bpparam()
+					   ) {
 					   
   for (d in min_dist) {
     for (n in n_neighbors) {
-      sce <- runUMAP(sce, n_neighbors = n, min_dist = d, 
-                     name = paste0("UMAP_m.dist", d, "_n.neigh", n), 
-	                 dimred = dim_reduc, ncomponents = 2, BPPARAM = SnowParam(6))
+      for (sp in spread) {
+        message("Running UMAP with min_dist = ", d, ", n_neighbors = ", n, ", spread = ", sp)
+        sce <- runUMAP(sce, n_neighbors = n, min_dist = d, spread = sp,
+                       name = paste0("UMAP_m.dist", d, "_n.neigh", n, "_spread", sp), 
+    	               dimred = dim_reduc, ncomponents = 2, BPPARAM = BPPARAM)
+      }
     }
   }
   
@@ -375,7 +390,30 @@ celldata <- colData(sce)
 colData(sce) <- cbind(celldata, out$clusters)
 ```
 
-#### Downsample an SCE
+#### Diffusion Maps
+
+These retain lineage structure more cleanly than UMAP, etc. Often worth subsetting object to lineage of interest before running.
+
+```r
+library(destiny)
+
+# Starting from a SingleCellExperiment object
+# Create expressionSet so that phenotype data is carried along.
+cts <- as.matrix(logcounts(sce))
+met <- new("AnnotatedDataFrame", data = as.data.frame(colData(sce)))
+exps <- ExpressionSet(cts, phenoData = met)
+rm(cts)
+dm <- DiffusionMap(exps)
+
+dir.create("./destiny/figures", showWarnings = FALSE, recursive = TRUE)
+
+# The dataframe is useful for 3D plotting.
+dm.df <- as.data.frame(dm)
+reducedDim(sce.new, "destiny") <- dm.df[, 1:20]
+
+write.csv(dm.df, file = "./destiny/dm_df.csv")
+```
+#### Downsample SCE
 
 For testing stuff on smaller numbers of cells, etc.
 
@@ -1782,6 +1820,8 @@ for (i in seq_along(df_lists)) {
 
 ### CNV Calling from Methylation Array
 This spits out typical genome-wide CNV plots, segmentation files, bins, and IGV tracks from Illumina methylation arrays. Users can add details regions for labels if they'd like. When mixing both 450k and EPIC arrays, set `array_type = "overlap"`.
+
+=== "Using conumee"
 ```r
 library("minfi")
 library("conumee")

@@ -41,7 +41,7 @@ conda install -c bioconda vartrix
 ```
 
 ### Running
-Pretty simple to run. Ya just feed in your VCF, the bam, the genome, the barcodes, and an output name. Below is a script to submit LSF jobs for a directory containing CellRanger runs. I use the raw feature barcodes, as I am doing my own cell calling with alevin-fry counts for my dowstream analyses, so I don't want any of my potential cells filtered out.
+Pretty simple to run. Ya just feed in your VCF, the bam, the genome, the barcodes, and an output name. Below is a script to submit LSF jobs for a directory containing CellRanger runs. I use the raw feature barcodes, as I am doing my own cell calling with alevin-fry counts for my downstream analyses, so I don't want any of my potential cells filtered out.
 
 ```bash
 #!/bin/bash
