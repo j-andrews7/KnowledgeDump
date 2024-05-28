@@ -392,7 +392,7 @@ colData(sce) <- cbind(celldata, out$clusters)
 
 #### Diffusion Maps
 
-These retain lineage structure more cleanly than UMAP, etc. Often worth subsetting object to lineage of interest before running.
+These retain lineage structure more cleanly than UMAP, etc. Often worth subsetting object to lineage of interest before running. There are a few ways to run this - on all variable genes, on PCA components, etc. Recommended to try the variable genes first, though it takes a long while to run.
 
 ```r
 library(destiny)
