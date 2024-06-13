@@ -301,6 +301,33 @@ main_plot <- main_plot %>%
       });
     }")
 ```
+
+#### plotly change plot order of traces
+
+In R, plotly doesn't have a built-in way to define plotting order of traces (i.e. different groups), which can result in frustration if you want certain points plotted on top. Thankfully, this can be manually altered by setting the factor levels of the coloring variable.
+
+```r
+library(plotly)
+
+dd <- data.frame(x = rnorm(1000, 5, 0.5), y = rnorm(1000, 18, 0.2), 
+				 group = c(rep("A", 500), rep("B", 500)))
+fig <- plot_ly(data = dd, x = ~x, y = ~y, color = ~group, size = 7, 
+			   opacity = 1, mode = "markers", type = "scatter", marker = list(opacity = 1))
+
+# Note the overlapping points
+fig
+
+# Swap the group order in the dataframe.
+dd$group <- factor(dd$group, levels = c("B", "A"))
+fig <- plot_ly(data = dd, x = ~x, y = ~y, color = ~group, size = 7, 
+			   opacity = 1, mode = "markers", type = "scatter", marker = list(opacity = 1))
+
+# Group 'A' now plotted on top of 'B'.
+fig
+
+# If using ggplotly, something like this can also sometimes work without messing with the upstream data.
+fig$x$data <- rev(fix$x$data)
+```
 ### Single Cell RNA-seq
 #### dimReduc Sweep
 To get lots of dimensionality reductions with differing parameters.
