@@ -328,6 +328,11 @@ fig
 # If using ggplotly, something like this can also sometimes work without messing with the upstream data.
 fig$x$data <- rev(fix$x$data)
 ```
+
+#### A note on plotly `layout`  and addition of shapes
+
+The `layout` function in R plotly cannot be called multiple times to additively add shapes (like arbitrary lines, etc) to a plot. They must be pre-defined and added all at once. See [this issue](https://github.com/plotly/plotly.R/issues/1333) for more details.
+
 ### Single Cell RNA-seq
 #### dimReduc Sweep
 To get lots of dimensionality reductions with differing parameters.
