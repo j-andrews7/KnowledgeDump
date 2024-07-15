@@ -1336,6 +1336,8 @@ run_enrichKEGG <- function(res.list, padj.th = 0.05, lfc.th = 0, outdir = "./enr
                    kegg.native = TRUE),
           error = function(e) {"bah"}
         )
+
+		graphics.off()
       }
 
       # This idiotic workaround copies the PNGs to our wanted directory as pathview generates
@@ -1469,32 +1471,6 @@ run_enrichPathway <- function(res.list, padj.th = 0.05, lfc.th = 0, outdir = "./
         print(p)
         dev.off()
       }
-      
-      # Network plot for each pathway with FC values.
-      # for (x in ego@compareClusterResult$Description) {
-      #   # Some pathways have backslashes, which will break file creation.
-      #   x_out <- str_replace_all(x, "/", "_")
-      #   
-      #   # For when it inevitably wants to crash due to not finding a pathway name or such.
-      #   tryCatch(
-      #     {
-      #       pdf(paste0(out, "/Reactome_pathways/", x_out, ".pdf"), width = 11, height = 11)
-      #       p <- viewPathway(x, readable = TRUE, foldChange = gl, organism = organism)
-      #       vals <- p$data$color[!is.na(p$data$color)]
-      #       l <- max(abs(as.numeric(vals)))
-      #       p <- p + scale_color_gradient2(limits = c(-l,l), mid = "grey90", 
-      #                                      high = "red", low = "navyblue")
-      #       print(p)
-      #       dev.off()
-      #       dev.off()
-      #       dev.off()
-      #       dev.off()
-      #       dev.off()
-      #       dev.off()
-      #     },
-      #     error = function(e) {"bah"}
-      #   )
-      # }
       
       saveRDS(ego, file = paste0(out, "/enrichPathway.reactome.RDS"))
       ego <- as.data.frame(ego)
@@ -1967,6 +1943,7 @@ This is a super lazy function to run through a list of contrasts and create diff
 #' @param lfc.th A numeric vector of log2 fold-change thresholds. Defaults to c(log2(1.5), log2(2)).
 #' @param shrink.method The method used for shrinkage estimation. Defaults to "apeglm".
 #' @param outdir The directory where the output should be saved. Defaults to "./de".
+#' @param norm.ercc A logical indicating whether to normalize to ERCC spike-ins.
 #' @param BPPARAM The BiocParallelParam object specifying the parallel back-end to be used. Defaults to NULL.
 #' 
 #' @return A list of DESeq2 result tables for the specified contrasts, saved to the specified output directory.
@@ -1977,8 +1954,12 @@ This is a super lazy function to run through a list of contrasts and create diff
 #'                design = my_design, alpha = 0.01, lfc.th = c(log2(2), log2(3)), 
 #'                shrink.method = "normal", outdir = "./my_results", BPPARAM = MulticoreParam(2))
 #' }
-get_DESEQ2_res <- function(dds, res.list, contrasts, user.mat = FALSE, block = NULL, design = NULL, alpha = 0.05, 
-						   lfc.th = c(log2(1.5), log2(1.25)), shrink.method = "apeglm", outdir = "./de", BPPARAM = NULL) {
+#'
+#' @author Jared Andrews
+get_DESEQ2_res <- function(dds, res.list, contrasts, user.mat = FALSE, block = NULL, 
+                           design = NULL, alpha = 0.05, 
+						   lfc.th = c(log2(1.25), log2(1.5)), shrink.method = "apeglm", 
+						   outdir = "./de", norm.ercc = FALSE, BPPARAM = NULL) {
   
   dir.create(file.path(outdir), showWarnings = FALSE, recursive = TRUE)
   
@@ -2004,13 +1985,21 @@ get_DESEQ2_res <- function(dds, res.list, contrasts, user.mat = FALSE, block = N
       desgn <- as.formula(paste0("~", con[1]))
     }
     
-    message(paste0("Design for ", paste(con[1], con[2], "vs", con[3], sep = "_"),
+    message(paste0("\nDesign for ", paste(con[1], con[2], "vs", con[3], sep = "_"),
                    " is ", paste0(as.character(desgn))))
     
     dds <- DESeqDataSet(dds, design = desgn)
+    
+    # Get size factor by spike-ins if specified.
+    if (norm.ercc) {
+      spikes <- rownames(dds)[grep("^ERCC-", rownames(dds))]
+      message(paste0("\nCalculating size factors from ", length(spikes), " ERCC spike-ins."))
+      dds <- estimateSizeFactors(dds, controlGenes=rownames(dds) %in% spikes)
+    }
+    
     dds <- DESeq(dds, BPPARAM = BPPARAM)
 
-    res1 <- results(dds, contrast = con, alpha = alpha, BPPARAM = BPPARAM)
+    res1 <- results(dds, contrast = con, alpha = alpha)
     res1$ENSEMBL <- rownames(res1)
     res1$SYMBOL <- rowData(dds)$SYMBOL
     
@@ -2021,7 +2010,7 @@ get_DESEQ2_res <- function(dds, res.list, contrasts, user.mat = FALSE, block = N
       if (shrink.method == "ashr") {
         coef <- NULL
       }
-      shrink <- lfcShrink(dds, res = res1, coef = coef, type = shrink.method, BPPARAM = BPPARAM)
+      shrink <- lfcShrink(dds, res = res1, coef = coef, type = shrink.method)
       shrink$ENSEMBL <- rownames(shrink)
       shrink$SYMBOL <- rowData(dds)$SYMBOL
       rownames(shrink) <- shrink$SYMBOL
@@ -2040,7 +2029,7 @@ get_DESEQ2_res <- function(dds, res.list, contrasts, user.mat = FALSE, block = N
     
     for (l in lfc.th) {
       
-      res <- results(dds, contrast = con, alpha = alpha, lfcThreshold = l, BPPARAM = BPPARAM)
+      res <- results(dds, contrast = con, alpha = alpha, lfcThreshold = l)
       res$ENSEMBL <- rownames(res)
       res$SYMBOL <- rowData(dds)$SYMBOL
       
@@ -2050,7 +2039,7 @@ get_DESEQ2_res <- function(dds, res.list, contrasts, user.mat = FALSE, block = N
           coef <- NULL
         }
         out.name <- paste0(rname, "-shLFC", l)
-        shrink <- lfcShrink(dds, res = res, coef = coef, type = shrink.method, BPPARAM = BPPARAM)
+        shrink <- lfcShrink(dds, res = res, coef = coef, type = shrink.method)
         shrink$ENSEMBL <- rownames(shrink)
         shrink$SYMBOL <- rowData(dds)$SYMBOL
         rownames(shrink) <- shrink$SYMBOL
