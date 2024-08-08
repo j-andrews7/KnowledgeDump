@@ -2300,3 +2300,28 @@ For removing PAM sequence, etc.
 ```bash
 awk -F, -v OFS=',' '{ $2=substr($2, 1, length($2)-3) } 1' input.csv > output.csv
 ```
+
+### Sort and Index BAMS
+
+```bash
+module load samtools
+
+for f in *.bam; 
+	do echo "$f"; 
+	fb=$(basename "$f" .bam); 
+	samtools sort -@ 8 -T "$fb" -o "$fb".sorted.bam "$f"; 
+	samtools index "$fb".sorted.bam; 
+done
+```
+
+### BED to GFF
+
+I hate ROSE so much. GFF is 1-based, half closed, start needs to shift by one. Ignores anything past first 4 columns.
+
+```bash
+# Assuming unique ID in column 4
+for b in *.bed; do
+	bb=$(basename "$b" .bed);
+	awk 'BEGIN{OFS="\t"}; {print $1,$4,".",$2-1,$3,".",".",".",$4}' "$b" > "$bb".gff;
+done
+```
