@@ -1826,6 +1826,130 @@ for (i in seq_along(df_lists)) {
 }
 ```
 
+#### Get All Gene IDs for GO Terms Associated with a Given Search Term
+
+```r
+#' Retrieve Genes Associated with GO Terms Containing a Specific Search Term
+#'
+#' This function searches for Gene Ontology (GO) Biological Process terms that contain a specified search term
+#' and retrieves all associated genes for the specified species and ID type.
+#'
+#' @param search_term A character string specifying the term to search for within GO Biological Process terms (case-insensitive).
+#' @param species A character string specifying the species. Supported species include "human", "mouse", and "rat".
+#'                Default is "human".
+#' @param id_type A character string specifying the type of gene identifier to return.
+#'                Options include "SYMBOL", "ENTREZID", and "ENSEMBL". Default is "SYMBOL".
+#'
+#' @return A named character vector of gene identifiers of the specified type associated with GO terms that contain the search term.
+#'         The names of the vector are the corresponding Entrez Gene IDs (if `id_type` is not "ENTREZID").
+#'
+#' @details
+#' The function performs the following steps:
+#' \enumerate{
+#'   \item Retrieves all GO terms and their descriptions.
+#'   \item Searches for GO terms that include the specified search term.
+#'   \item Retrieves all Entrez Gene IDs associated with the matching GO terms.
+#'   \item Maps Entrez Gene IDs to the specified type of gene identifier.
+#' }
+#'
+#' **Note:** The function supports species specified in the `species_packages` list. For other organisms, you can add the appropriate entries.
+#'
+#' @examples
+#' \dontrun{
+#' # Retrieve human gene symbols associated with GO terms containing "WNT"
+#' genes_wnt_human <- get_genes_by_go_term("WNT", species = "human", id_type = "SYMBOL")
+#' print(genes_wnt_human)
+#'
+#' # Retrieve mouse Ensembl IDs associated with GO terms containing "apoptosis"
+#' genes_apoptosis_mouse <- get_genes_by_go_term("apoptosis", species = "mouse", id_type = "ENSEMBL")
+#' print(genes_apoptosis_mouse)
+#'
+#' # Retrieve rat Entrez IDs associated with GO terms containing "cell cycle"
+#' genes_cell_cycle_rat <- get_genes_by_go_term("cell cycle", species = "rat", id_type = "ENTREZID")
+#' print(genes_cell_cycle_rat)
+#' }
+#'
+#' @importFrom AnnotationDbi mapIds
+#' @import GO.db
+#' @import org.Hs.eg.db
+#' @import org.Mm.eg.db
+#' @import org.Rn.eg.db
+#' @export
+get_genes_by_go_term <- function(search_term, species = "human", id_type = "SYMBOL") {
+  
+  # Map species to organism package names
+  species_packages <- list(
+    "human" = "org.Hs.eg.db",
+    "mouse" = "org.Mm.eg.db",
+    "rat" = "org.Rn.eg.db"
+    # Add more species as needed
+  )
+  
+  if (!species %in% names(species_packages)) {
+    stop("Unsupported species. Please use one of: ", paste(names(species_packages), collapse = ", "))
+  }
+  
+  org_package <- species_packages[[species]]
+  
+  # Load the organism-specific package
+  suppressPackageStartupMessages(require(org_package, character.only = TRUE))
+  
+  # Get all GO terms
+  go_terms <- as.list(GOTERM)
+  
+  # Extract GO IDs and their associated terms
+  go_ids <- names(go_terms)
+  go_terms_text <- character(length(go_terms))
+  
+  for (i in seq_along(go_terms)) {
+    go_terms_text[i] <- go_terms[[i]]@Term
+  }
+  
+  # Search for GO terms that include the search term (case-insensitive)
+  indices <- grep(search_term, go_terms_text, ignore.case = TRUE)
+  matched_go_ids <- go_ids[indices]
+  
+  # Retrieve genes associated with these GO IDs
+  # Construct the name of the GO to All Genes mapping object
+  org_prefix <- sub("\\.db$", "", org_package) # Remove ".db" from package name
+  go2allels_name <- paste0(org_prefix, "GO2ALLEGS")
+  go2allels <- get(go2allels_name)
+  
+  genes_entrez_list <- mget(matched_go_ids, go2allels, ifnotfound = NA)
+  
+  # Flatten the list and remove NAs
+  genes_entrez <- unique(unlist(genes_entrez_list))
+  genes_entrez <- genes_entrez[!is.na(genes_entrez)]
+  
+  # Map Entrez Gene IDs to the specified ID type
+  # Get the organism-specific database object
+  org_db <- get(org_package)
+  
+  # Check if the requested id_type is valid
+  valid_id_types <- columns(org_db)
+  if (!(id_type %in% valid_id_types)) {
+    stop("Invalid 'id_type'. Valid options are: ", paste(valid_id_types, collapse = ", "))
+  }
+  
+  # If id_type is ENTREZID, simply return the Entrez IDs
+  if (id_type == "ENTREZID") {
+    genes_ids <- genes_entrez
+    names(genes_ids) <- genes_entrez
+  } else {
+    genes_ids <- mapIds(
+      org_db,
+      keys = genes_entrez,
+      column = id_type,
+      keytype = "ENTREZID",
+      multiVals = "first"
+    )
+  }
+  
+  # Return the gene identifiers
+  return(genes_ids)
+}
+```
+
 ### CNV Calling from Methylation Array
 This spits out typical genome-wide CNV plots, segmentation files, bins, and IGV tracks from Illumina methylation arrays. Users can add details regions for labels if they'd like. When mixing both 450k and EPIC arrays, set `array_type = "overlap"`.
 
