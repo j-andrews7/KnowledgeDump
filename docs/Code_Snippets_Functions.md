@@ -1826,6 +1826,91 @@ for (i in seq_along(df_lists)) {
 }
 ```
 
+#### Hypergeometric Testing
+
+Of arbitrary genesets. Useful for custom lists.
+
+```r
+#' Hypergeometric testing with arbitrary gene sets
+#'
+#' @param genes Character vector of gene IDs to test for enrichment.
+#' @param bg Character vector of gene IDs to be used as background.
+#' @param TERM2GENE data.frame of two columns, the first for the term and the second for the gene ID.
+#'   Each gene in each geneset gets its own row (long format). Gene identifiers should be ENTREZID.
+#' @param name Character scalar for output name.
+#' @param gsname Name of collection of genesets, used for output file naming.
+#' @param outdir Character scalar for output directory.
+#' @param OrgDb Character scalar for annotation database to use.
+#' @param id.type Character scalar indicating type of gene ID used. See \code{keytypes(org.Hs.eg.db)} for all options.
+#' @param ... Passed to specified enrichments function.
+#' @author Jared Andrews
+run_enrich_universal <- function(genes, bg, TERM2GENE, name = "sample", gsname = "custom", outdir = "./enrichments",
+                         OrgDb = "org.Hs.eg.db", id.type = "ENSEMBL", ...) {
+
+  out <- file.path(outdir, name)
+  dir.create(out, recursive = TRUE, showWarnings = FALSE)
+  
+  # Strip gene version info if ensembl.
+  if (id.type == "ENSEMBL") {
+    xx <- strsplit(genes, "\\.")
+    genes <- unlist(lapply(xx, FUN = function(x) x[1]))
+    
+    xx <- strsplit(bg, "\\.")
+    bg <- unlist(lapply(xx, FUN = function(x) x[1]))
+  }
+
+  skip <- FALSE
+
+  tryCatch({
+    genes <- bitr(genes, fromType = id.type, toType = "ENTREZID",
+                          OrgDb = OrgDb)$ENTREZID
+  },
+  error = function(e) {
+    message("There was an error: ", e)
+    message("Most likely, no gene identifiers for hits could be mapped to entrez IDs.")
+    skip <<- TRUE
+  })
+
+  if (skip) {
+	next
+  }
+
+  ego <- enricher(gene = genes, universe = bg, TERM2GENE = TERM2GENE, ...)
+
+  if (nrow(as.data.frame(ego)) > 0) {
+    # Term similarities via Jaccard Similarity index.
+    ego <- pairwise_termsim(ego)
+    # ego <- setReadable(ego, OrgDb = OrgDb, keyType="ENTREZID")
+    pdf(paste0(out, "/", gsname, ".Top30.pdf"), width = 6, height = 8)
+    p <- dotplot(ego, showCategory = 30, font.size = 7)
+    print(p)
+    p <- barplot(ego, showCategory = 30, font.size = 7)
+    print(p)
+    dev.off()
+    
+    if (nrow(as.data.frame(ego)) > 2) {
+      pdf(paste0(out, "/", gsname, ".termsim.Top30_Tree.pdf"), width = 17, height = 14)
+      p <- treeplot(ego, showCategory = 30, fontsize = 4, offset.params = list(bar_tree = rel(2.5), tiplab = rel(2.5), extend = 0.3, hexpand = 0.1), cluster.params = list(method = "ward.D", n = min(c(6, ceiling(sqrt(nrow(ego))))), color = NULL, label_words_n = 5, label_format = 30))
+      print(p)
+      dev.off()
+      
+      pdf(paste0(out, "/", gsname, ".termsim.Top10_FullNet.pdf"), width = 15, height = 15)
+      p <- cnetplot(ego, showCategory = 10, cex.params = list(category_label = 1.3, gene_label = 0.9, category_node = 1, gene_node = 1), layout = "kk")
+      print(p)
+      dev.off()
+      
+      pdf(paste0(out, "/", gsname, ".termsim.Top5_FullNet.pdf"), width = 12, height = 12)
+      p <- cnetplot(ego, showCategory = 5, cex.params = list(category_label = 1.3, gene_label = 0.9, category_node = 1, gene_node = 1), layout = "kk")
+      print(p)
+      dev.off()
+    }
+    
+    saveRDS(ego, file = paste0(out, "/", gsname, ".results.RDS"))
+    ego <- as.data.frame(ego)
+    write.table(ego, file = paste0(out, "/", gsname, ".results.txt"), sep = "\t", row.names = FALSE, quote = FALSE)
+  }
+}
+```
 #### Get All Gene IDs for GO Terms Associated with a Given Search Term
 
 ```r
