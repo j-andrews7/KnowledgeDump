@@ -2035,6 +2035,60 @@ get_genes_by_go_term <- function(search_term, species = "human", id_type = "SYMB
 }
 ```
 
+#### treemap plot with highest frequency terms used as labels for groups
+
+`rrvigo::treemapPlot` is nifty, but the labeling can leave a bit to be desired since it will only label by the largest or top-scored term in each cluster. This function labels instead by the top N highest frequency words in the terms for each cluster, which feels like a nicer representation than the other options. Like a mix of a wordcloud with a treemap.
+
+```r
+#' treeMapPlot with frequency-based labels
+#' 
+#' @param reducedTerms Data frame of reduced terms from reduceSimMatrix.
+#' @param nterms Number of terms to use as labels.
+#' @param size What to use for rectangle sizing. Can be either GO term's "size" or "score".
+#'   Defaults to "score"/
+#' @param title Plot title. 
+#' @param stopwords Vector of stopwords to ignore for term frequency calculation. 
+#'   Defaults to English stopwords.
+#' @param ... other parameters sent to treemap::treemap()
+#' @return A list from the call to the `treemap()` function is silently returned
+#' @examples
+#' \dontrun{
+#' go_analysis <- read.delim(system.file("extdata/example.txt", package="rrvgo"))
+#' simMatrix <- calculateSimMatrix(go_analysis$ID, orgdb="org.Hs.eg.db", ont="BP", method="Rel")
+#' scores <- setNames(-log10(go_analysis$qvalue), go_analysis$ID)
+#' reducedTerms <- reduceSimMatrix(simMatrix, scores, threshold=0.7, orgdb="org.Hs.eg.db")
+#' treemapPlotFreq(reducedTerms)
+#' }
+#'
+#' @author Jared Andrews
+#'
+#' @importFrom treemap treemap
+#' @export
+treemapPlotFreq <- function(reducedTerms, nterms = 6, size = "score", title = "", stoppers = stopwords(kind = "en"), ...) {
+  
+  # For each cluster of terms, get frequency of "term", sort words by frequency, and take top nterms
+  freq.red.terms <- data.frame()
+  for (c in unique(reducedTerms$cluster)) {
+    clusterTerms <- reducedTerms[reducedTerms$cluster == c, ]
+    x <- tm::Corpus(tm::VectorSource(clusterTerms$term))
+    tdm <- tm::TermDocumentMatrix(x, control=list(removePunctuation=FALSE,
+                                                stopwords=stoppers))
+    m <- as.matrix(tdm)
+    v <- sort(rowSums(m), decreasing=TRUE)
+    d <- data.frame(word=names(v), freq=v)
+    wds <- d$word[seq(nterms)]
+    wds <- wds[!is.na(wds)]
+    clusterTerms$parentTerm <- paste(wds, collapse = " ")
+    freq.red.terms <- rbind(freq.red.terms, clusterTerms)
+  }
+
+  treemap::treemap(freq.red.terms, index=c("parentTerm", "term"), vSize=size,
+                   type="index", title=title,
+                   palette=rrvgo:::gg_color_hue(length(unique(reducedTerms$parent))),
+                   fontcolor.labels=c("#FFFFFFDD", "#00000080"), bg.labels=0,
+                   border.col="#00000080", ...)
+}
+```
 ### CNV Calling from Methylation Array
 This spits out typical genome-wide CNV plots, segmentation files, bins, and IGV tracks from Illumina methylation arrays. Users can add details regions for labels if they'd like. When mixing both 450k and EPIC arrays, set `array_type = "overlap"`.
 
