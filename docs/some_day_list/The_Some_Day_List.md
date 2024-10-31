@@ -22,5 +22,6 @@ Stuff that I'd like to get to at some point that isn't important enough to prior
 ## Reference Data 
 - Get genesets from: https://www.science.org/doi/10.1126/science.add7046
 - Make combined reference genomes for nf-core pipelines, e.g. mm10 + hg38. GTFs and FASTAs, with clear species indicators.
+	- At least for RNA-seq, this takes advantage of the fractional counts based on probability (EM) from salmon for ambiguous reads.
 ## Organization
 - List all interactive reports/apps on wiki.
