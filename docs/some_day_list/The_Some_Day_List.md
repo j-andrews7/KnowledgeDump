@@ -19,5 +19,8 @@ Stuff that I'd like to get to at some point that isn't important enough to prior
 - Template notebooks for ATAC-seq.
 - Template notebooks for ChIP-seq/CnR.
 
+## Data Collection
+- Get genesets from: https://www.science.org/doi/10.1126/science.add7046
+
 ## Organization
 - List all interactive reports/apps on wiki.
