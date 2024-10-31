@@ -597,17 +597,6 @@ runGSEA <- function(msigs, ranked.genes, outdir, outprefix,
       dev.off()
     }
     
-    # Plot top 10 pos/neg enriched pathways in table-ish format plot.
-    if (length(fsig) > 0) {
-      pdf(paste0(outpre, ".Top10Pathways.padj0.05.pdf"), width = 12)
-      topPathwaysUp <- fgseaRes[ES > 0 & padj < 0.05][head(order(pval), n=10), pathway]
-      topPathwaysDown <- fgseaRes[ES < 0 & padj < 0.05][head(order(pval), n=10), pathway]
-      topPathways <- c(topPathwaysUp, rev(topPathwaysDown))
-      plotGseaTable(sigs[topPathways], ranked.genes, fgseaRes, 
-              gseaParam=0.5)
-      dev.off()
-    }
-    
     # Add results to named list.
     if (!is.null(xlsx)) {
       xlsx[[xlname]] <- fgseaRes
@@ -712,14 +701,6 @@ runCustomGSEA <- function(sigs, ranked.genes, outdir,
     }
     grid.arrange(grobs = plots[start:end], nrow = 4, ncol = 6)
   }
-  dev.off()
-  
-  pdf(paste0(outpre, ".Top10Pathways.padj0.05.pdf"), width = 12)
-  topPathwaysUp <- fgseaRes[ES > 0 & padj < 0.05][head(order(pval), n=10), pathway]
-  topPathwaysDown <- fgseaRes[ES < 0 & padj < 0.05][head(order(pval), n=10), pathway]
-  topPathways <- unique(c(topPathwaysUp, rev(topPathwaysDown)))
-  plotGseaTable(sigs[topPathways], ranked.genes, fgseaRes, 
-          gseaParam=0.5)
   dev.off()
   
   if (!is.null(xlsx)) {
