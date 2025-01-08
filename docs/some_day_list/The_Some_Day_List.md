@@ -12,6 +12,7 @@ Stuff that I'd like to get to at some point that isn't important enough to prior
 - Make IBET more performant.
 	- Avoid complete re-plotting when adding labels.
 	- Add option to add labels automatically on highlighted gene(sets).
+	- Add apps to summarize/display GSEA and enrichment results for typical RNA-seq analyses.
 - Make the nf-core Cut & Run pipeline script for fragment length histograms more memory efficient by changing from using `np.array` for each iteration to a list and concatenating the list objects into an array at the end.
 	- This sucker takes like 500+ GB of memory for large datasets unnecessarily.
 - Figure out how to get the latest DepMap releases into the [depmap R package](https://github.com/UCLouvain-CBIO/depmap/issues/95)

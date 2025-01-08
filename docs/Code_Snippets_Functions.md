@@ -2011,8 +2011,8 @@ get_genes_by_go_term <- function(search_term, species = "human", id_type = "SYMB
     )
   }
   
-  # Return the gene identifiers
-  return(genes_ids)
+  
+  genes_ids
 }
 ```
 
