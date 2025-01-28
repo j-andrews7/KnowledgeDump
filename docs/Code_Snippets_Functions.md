@@ -2026,7 +2026,7 @@ get_genes_by_go_term <- function(search_term, species = "human", id_type = "SYMB
 #' @param reducedTerms Data frame of reduced terms from reduceSimMatrix.
 #' @param nterms Number of terms to use as labels.
 #' @param size What to use for rectangle sizing. Can be either GO term's "size" or "score".
-#'   Defaults to "score"/
+#'   Defaults to "score".
 #' @param title Plot title. 
 #' @param stopwords Vector of stopwords to ignore for term frequency calculation. 
 #'   Defaults to English stopwords.
@@ -2068,6 +2068,249 @@ treemapPlotFreq <- function(reducedTerms, nterms = 6, size = "score", title = ""
                    palette=rrvgo:::gg_color_hue(length(unique(reducedTerms$parent))),
                    fontcolor.labels=c("#FFFFFFDD", "#00000080"), bg.labels=0,
                    border.col="#00000080", ...)
+}
+```
+
+#### Group barPlot of highest frequency terms
+
+This will plot the top 5 terms in each cluster by frequency and use them as the labels to summarize the group. Uses "score" to rank within each group.
+
+```r
+# Load necessary libraries
+library(ggplot2)
+library(dplyr)
+library(tidytext)
+library(stringr)
+library(colorspace)
+library(tm)
+library(dittoSeq)
+
+# Function to generate the plot
+plot_clustered_terms <- function(reduced_terms, stoppers = c(stopwords(kind = "en")),
+                                 color = "#E69F00", n_top_terms = 5, perc_shift = 0.05,
+                                 label_font_size = 5, xlab = "-log10(adj.P)") {
+
+  # Find the top n terms for each cluster
+  top_terms <- reduced_terms %>%
+    unnest_tokens(word, term, token = stringr::str_split, pattern = " ") %>%
+    filter(!word %in% stoppers) %>%
+    rowwise() %>%
+    mutate(word = removePunctuation(word, preserve_intra_word_dashes = TRUE)) %>%
+    count(cluster, word, sort = TRUE) %>%
+    group_by(cluster) %>%
+    slice_max(n, n = n_top_terms, with_ties = FALSE) %>%
+    summarise(terms = paste(word, collapse = " "))
+  
+  # Merge the top terms back into the main data
+  data_with_terms <- reduced_terms %>%
+    left_join(top_terms, by = "cluster")
+
+  # Arrange data by cluster and score within cluster
+  data_with_terms <- data_with_terms %>%
+    arrange(desc(cluster), score) %>%
+    mutate(term_order = factor(paste("Cluster", cluster, ":", term), 
+                               levels = paste("Cluster", cluster, ":", term)))
+
+  # Create a numeric version of term_order for easier handling of segments
+  data_with_terms$term_index <- as.numeric(data_with_terms$term_order)
+
+  # Calculate middle cluster
+  unique_clusters <- sort(unique(data_with_terms$cluster))
+  middle_cluster <- unique_clusters[ceiling(length(unique_clusters) / 2)]
+
+  # Assign colors based on distance from the middle cluster
+  data_with_terms <- data_with_terms %>%
+    mutate(color_adjusted = case_when(
+      cluster == middle_cluster ~ color,
+      cluster < middle_cluster ~ darken(color, amount = (middle_cluster - cluster) * perc_shift),
+      cluster > middle_cluster ~ lighten(color, amount = (cluster - middle_cluster) * perc_shift)
+    ))
+
+  # Create the plot
+  p <- ggplot(data_with_terms, aes(y = term_order, x = score)) +
+    geom_bar(stat = "identity", show.legend = FALSE, fill = data_with_terms$color_adjusted) +
+    theme_classic() 
+
+  # Add line segments and text for top terms
+  pp <- p + 
+    geom_segment(data = data_with_terms %>% group_by(cluster) %>% 
+                     summarise(min_idx = min(term_index), max_idx = max(term_index), color_adjusted = color_adjusted),
+                 aes(y = min_idx - 0.05, yend = max_idx + 0.05, x = -0.1, xend = -0.1, color = color_adjusted),
+                 linetype = "solid", size = 1, color = rev((data_with_terms %>% group_by(cluster))$color_adjusted)) +
+    scale_y_discrete(labels = str_wrap(top_terms$terms, width = 30), 
+                     breaks = data_with_terms$term_order[(data_with_terms %>% group_by(cluster) %>% 
+                                                              summarise(mid = ceiling(mean(term_index))))$mid]) + 
+    scale_x_continuous(expand = c(0,0)) +
+    labs(x = xlab, y = NULL) +
+    theme(axis.line.y = element_blank(),
+          axis.ticks.y = element_blank(),
+          axis.text.y = element_text(size = label_font_size))
+  
+  pp
+}
+
+
+plot_clustered_terms_top <- function(reduced_terms, stoppers = c(stopwords(kind = "en")),
+                                 color = "#E69F00", n_top_terms = 5, n_top_clusters = NULL, perc_shift = 0.3,
+                                 label_font_size = 5, xlabel = "score") {
+
+  # Find the top n terms for each cluster
+  top_terms <- reduced_terms %>%
+    unnest_tokens(word, term, token = stringr::str_split, pattern = " ") %>%
+    filter(!word %in% stoppers) %>%
+    rowwise() %>%
+    mutate(word = removePunctuation(word, preserve_intra_word_dashes = TRUE)) %>%
+    count(cluster, word, sort = TRUE) %>%
+    group_by(cluster) %>%
+    slice_max(n, n = n_top_terms, with_ties = FALSE) %>%
+    summarise(terms = paste(word, collapse = " "))
+  
+  # Merge the top terms back into the main data
+  data_with_terms <- reduced_terms %>%
+    left_join(top_terms, by = "cluster")
+
+  # Arrange data by cluster and score within cluster
+  data_with_terms <- data_with_terms %>%
+    arrange(desc(cluster), score) %>%
+      group_by(cluster) %>%
+    slice_max(score, n = 1, with_ties = FALSE)
+  
+  # Limit to top N clusters by score, across groups
+  if (!is.null(n_top_clusters)) {
+    data_with_terms <- data_with_terms %>%
+      arrange(desc(score)) %>%
+      head(n = n_top_clusters)
+  }
+
+  # Create the plot
+  ggplot(data_with_terms, aes(y = reorder(terms, score), x = score, fill = score)) +
+    geom_bar(stat = "identity", show.legend = TRUE) +
+    theme_classic() +
+      theme(axis.text.y = element_text(size = label_font_size)) +
+  scale_y_discrete(labels = function(x) str_wrap(x, width = 50)) +
+      scale_fill_gradient(low = Lighten(color, percent.change = perc_shift), high = Darken(color, percent.change = perc_shift)) +
+      xlab(xlabel)
+}
+```
+
+##### How to Run
+
+```r
+# Get GO BP data, speeds up similarity calculation
+onts <- c("BP", "CC", "MF")
+
+bs.col <- "#E69F00"
+fb.col <- "#56B4E9"
+
+wt.col <- "grey30"
+k27.col <- "#118002"
+
+for (ont in onts) {
+    gobp <- GOSemSim::godata("org.Mm.eg.db", ont = ont)
+    
+    comps <- c(
+                "bs.k27m.up.unique",
+                "bs.wt.up.unique",
+                "ctx.k27m.up.unique",
+                "ctx.wt.up.unique",
+                "k27m.up.common",
+                "wt.up.common",
+                "wt.bs.up.unique",
+                "wt.ctx.up.unique",
+                "wt.bs.up.common",
+                "wt.ctx.up.common")
+    
+    # Ignore these words in freq calcs
+    stoppers <- tm::stopwords(kind = "en")
+    stoppers <- c(stoppers, "regulation", "positive", "negative", "process", "cell", "activity")
+    
+    for (i in comps) {
+        if (startsWith(i, "bs.wt.up") | startsWith(i, "ctx.wt.up") | startsWith(i, "wt.up.common")) {
+            up.col <- wt.col
+        } else if (startsWith(i, "bs.k27m.up") | startsWith(i, "ctx.k27m.up") | startsWith(i, "k27m.up.common")) {
+            up.col <- k27.col
+        } else if (startsWith(i, "wt.bs.up.unique")) {
+            up.col <- bs.col
+        } else if (startsWith(i, "wt.ctx.up.unique")) {
+            up.col <- fb.col
+        } else {
+            up.col <- "magenta"
+        }
+        
+        message(i)
+        if (file.exists(paste0("./enrichments/de_sets/", i, "/enrichGO.", ont, ".results.RDS"))) {
+          enr.up <- readRDS(paste0("./enrichments/de_sets/", i, "/enrichGO.", ont, ".results.RDS"))
+          enr.up <- as.data.frame(enr.up)
+        } else {
+          enr.up <- NULL
+        }
+    
+        # Collapse similar terms, score by term size
+        enr.up.red <- NULL
+        if (!is.null(enr.up)) {
+          if (nrow(enr.up) > 2) {
+            enr.up.sim <- calculateSimMatrix(enr.up$ID, 
+                                             orgdb = "org.Mm.eg.db", ont = ont, semdata = gobp,
+                                             method = "Rel")
+            
+            enr.up.scores <- -log10(enr.up$p.adjust)
+            names(enr.up.scores) <- enr.up$ID
+            
+            enr.up.red.size <- reduceSimMatrix(enr.up.sim, scores = "size", 
+                                               threshold = 0.7, orgdb = "org.Mm.eg.db")
+            
+            enr.up.red.unique <- reduceSimMatrix(enr.up.sim, scores = "uniqueness", 
+                                                 threshold = 0.7, orgdb = "org.Mm.eg.db")
+            
+            enr.up.red.score <- reduceSimMatrix(enr.up.sim, scores = enr.up.scores, 
+                                                threshold = 0.7, orgdb = "org.Mm.eg.db")
+            
+            write.table(enr.up.red.size, 
+                        file = paste0("./enrichments/de_sets/", i,
+                                      "/enrichGO.", ont, ".termsim.Reduced.size.0.7.txt"), 
+                        sep = "\t", 
+                      row.names = FALSE, quote = FALSE)
+            
+            write.table(enr.up.red.unique, 
+                        file = paste0("./enrichments/de_sets/", i,
+                                      "/enrichGO.", ont, ".termsim.Reduced.uniqueness.0.7.txt"), 
+                        sep = "\t", 
+                      row.names = FALSE, quote = FALSE)
+            
+            write.table(enr.up.red.score, 
+                        file = paste0("./enrichments/de_sets/", i,
+                                      "/enrichGO.", ont, ".termsim.Reduced.log10padj_scores.0.7.txt"), 
+                        sep = "\t", 
+                      row.names = FALSE, quote = FALSE)
+            
+            # barPlots
+            pdf(paste0("./enrichments/de_sets/", i, "/enrichGO.", ont, ".barplot.termsim.Reduced.size.0.7.pdf"), width = 5, height = 6)
+            p <- plot_clustered_terms_top(enr.up.red.size, color = up.col, n_top_terms = 5, xlabel = "term size", stoppers = stoppers)
+            print(p)
+            p <- plot_clustered_terms_top(enr.up.red.size, color = up.col, n_top_terms = 5, n_top_clusters = 20, 
+                                          xlabel = "term size", stoppers = stoppers) + ggtitle("top 20 clusters by score")
+            print(p)
+            dev.off()
+            
+            pdf(paste0("./enrichments/de_sets/", i, "/enrichGO.", ont, ".barplot.termsim.Reduced.uniqueness.0.7.pdf"), width = 5, height = 6)
+            p <- plot_clustered_terms_top(enr.up.red.unique, color = up.col, n_top_terms = 5, xlabel = "uniqueness", stoppers = stoppers)
+            print(p)
+            p <- plot_clustered_terms_top(enr.up.red.unique, color = up.col, n_top_terms = 5, n_top_clusters = 20, 
+                                          xlabel = "uniqueness", stoppers = stoppers) + ggtitle("top 20 clusters by score")
+            print(p)
+            dev.off()
+            
+            pdf(paste0("./enrichments/de_sets/", i, "/enrichGO.", ont, ".barplot.termsim.Reduced.log10padj_scores.0.7.pdf"), width = 5, height = 6)
+            p <- plot_clustered_terms_top(enr.up.red.score, color = up.col, n_top_terms = 5, xlabel = "-log10(adj.pval)", stoppers = stoppers)
+            print(p)
+            p <- plot_clustered_terms_top(enr.up.red.score, color = up.col, n_top_terms = 5, n_top_clusters = 20, 
+                                          xlabel = "-log10(adj.pval)", stoppers = stoppers) + ggtitle("top 20 clusters by score")
+            print(p)
+            dev.off()
+            
+          }
+        }
+    }
 }
 ```
 ### CNV Calling from Methylation Array
