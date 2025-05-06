@@ -2575,6 +2575,19 @@ a <- c("TP53", "CDK2", "LAIR1")
 b <- c("TP53", "CDK1", "LAIR2")
 jaccard(a, b)
 ```
+
+
+### Shiny
+
+#### Increase upload bundle max size
+
+This will bump it to 3GB (default is 1 GB).
+
+```r
+options(rsconnect.max.bundle.size=3000*1024^2)
+```
+
+At times it may be necessary to add this to a `.rsconnect_profile` file in the app directory for it to be picked up properly for whatever reason.
 ## Python
 :snake: This is content.
 
